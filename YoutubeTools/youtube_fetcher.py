@@ -1,5 +1,32 @@
 import yt_dlp
+import requests
 
+def get_dislikes(video_id):
+    """
+    Récupère les dislikes via l'API Return YouTube Dislike.
+
+    Args:
+        video_id (str): ID de la vidéo YouTube
+
+    Returns:
+        dict: Statistiques incluant les dislikes estimés
+    """
+    try:
+        url = f"https://returnyoutubedislikeapi.com/votes?videoId={video_id}"
+        response = requests.get(url, timeout=5)
+
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'likes': data.get('likes', 0),
+                'dislikes': data.get('dislikes', 0),
+                'rating': data.get('rating', 0),
+                'viewCount': data.get('viewCount', 0),
+            }
+    except Exception as e:
+        print(f"Erreur lors de la récupération des dislikes: {e}")
+
+    return None
 
 def get_all_channel_videos(channel_url):
     ydl_opts = {
@@ -40,24 +67,8 @@ def get_video_info(url):
         info = ydl.extract_info(url, download=False)
 
         # Informations disponibles
-        return {
-            'title': info.get('title'),
-            'duration': info.get('duration'),  # en secondes
-            'view_count': info.get('view_count'),
-            'like_count': info.get('like_count'),
-            'uploader': info.get('uploader'),
-            'description': info.get('description'),
-            'upload_date': info.get('upload_date'),
-            'thumbnail': info.get('thumbnail'),
-            'formats': len(info.get('formats', [])),
-        }
+        return info
 
 
-#video_url = "https://www.youtube.com/watch?v=1KhPXq3k45A"
-#video_infos = get_video_info(video_url)
-
-channel_url = "https://www.youtube.com/@Amixem"
-video_urls = get_all_channel_videos(channel_url)
-print(video_urls)
 
 
