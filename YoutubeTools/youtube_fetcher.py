@@ -28,6 +28,16 @@ def get_dislikes(video_id):
 
     return None
 
+def is_sponsored(video_id):
+    url = f"https://sponsor.ajay.app/api/skipSegments?videoID={video_id}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        segments = response.json()
+        for segment in segments:
+            if segment['category'] == 'sponsor':
+                return True
+    return False
+
 def get_all_channel_videos(channel_url):
     ydl_opts = {
         'quiet': True,
@@ -65,8 +75,6 @@ def get_video_info(url):
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-
-        # Informations disponibles
         return info
 
 
