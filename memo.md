@@ -3,7 +3,6 @@
 > **But** : concevoir deux composantes complémentaires : une **IA prédictive** qui estime des attributs objectifs d'une future vidéo, et une **IA générative** (LLM + outils) qui propose titre et description plausibles en s'appuyant sur les prédictions et des exemples existants.
 
 ---
-
 ## 1) Résumé des sorties à prédire (IA prédictive)
 
 > **Objectifs principaux** — sortir des valeurs numériques / catégorielles pour une vidéo planifiée.

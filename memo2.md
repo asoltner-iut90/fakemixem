@@ -3,7 +3,6 @@
 > **Objectif** : concevoir deux composantes principales : une **IA prédictive** (estimation d'attributs mesurables) et une **IA générative** (proposition de titre et description réalistes à partir des prédictions et d'exemples existants).
 ---
 ## 1) Données à prédire (IA prédictive)
-
 ### Attributs principaux à prédire automatiquement
 
 | Nom du champ             | Type     | Description                                                                                 |
