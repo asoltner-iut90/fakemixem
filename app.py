@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import os
-from llm.gemini_tools import IA
+from generativeAI.gemini_tools import IA
 
 # Configuration de la page
 st.set_page_config(
@@ -11,16 +10,28 @@ st.set_page_config(
     layout="wide"
 )
 
+hide_streamlit_style = """
+<style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden; display: none;}
+    footer {visibility: hidden;}
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem;
+    }
+    [data-testid="stDecoration"] {display: none;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+
 # --- GESTION DE L'ÉTAT (SESSION STATE) ---
 if "generated_images" not in st.session_state:
     st.session_state.generated_images = []
 
 # Titre principal
 st.title("Bienvenue sur mon Application Streamlit")
-
-# Sidebar
-st.sidebar.header("Navigation")
-st.sidebar.info("Application créée avec Streamlit")
 
 # Système d'onglets
 home, data, llm = st.tabs(["🏠 Objectif", "📊 Données", "🤖 LLM"])
@@ -102,3 +113,5 @@ with llm:
                 if st.button("Effacer l'image"):
                     st.session_state.generated_images = []
                     st.rerun()
+
+

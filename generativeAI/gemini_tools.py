@@ -28,13 +28,8 @@ class IA:
             images = []
             if response.parts:
                 for part in response.parts:
-                    # CORRECTION MAJEURE ICI :
-                    # On vérifie si 'inline_data' existe (c'est là que se trouve l'image)
                     if part.inline_data:
-                        # On récupère les octets bruts (bytes) de l'image
                         image_data = part.inline_data.data
-                        # On les convertit en une vraie image PIL via BytesIO
-                        # C'est cette étape qui manquait et causait l'erreur Pydantic
                         img = Image.open(BytesIO(image_data))
                         images.append(img)
             return images
