@@ -14,7 +14,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
 from tensorflow.keras.callbacks import EarlyStopping
 
-# --- 1. CHARGEMENT ET PREP ---
+# CHARGEMENT ET PREPARATION DES DONNÉES
 def load_and_prep_data(df_or_path, limit=300):
     if isinstance(df_or_path, str):
         df = pd.read_csv(df_or_path)
@@ -27,7 +27,7 @@ def load_and_prep_data(df_or_path, limit=300):
     df = df.sort_values('upload_date').reset_index(drop=True)
     df['days_since_last'] = df['upload_date'].diff().dt.days.fillna(0)
     
-    # Features Cycliques
+    # Features cycliques
     day_of_week = df['upload_date'].dt.dayofweek
     df['day_sin'] = np.sin(2 * np.pi * day_of_week / 7)
     df['day_cos'] = np.cos(2 * np.pi * day_of_week / 7)
@@ -36,7 +36,6 @@ def load_and_prep_data(df_or_path, limit=300):
     df['month_cos'] = np.cos(2 * np.pi * month / 12)
     
     # Rolling
-    # Correction Warning: fillna(method='bfill') -> bfill()
     df['rolling_views'] = df['view_count'].shift(1).rolling(window=5).mean().bfill()
     
     # Logs
@@ -44,7 +43,7 @@ def load_and_prep_data(df_or_path, limit=300):
     df['log_likes'] = np.log1p(df['likes'])
     df['log_rolling_views'] = np.log1p(df['rolling_views'])
     
-    # --- CLASSIFICATION DURÉE ---
+    # Classification des durées
     def get_duration_class(seconds):
         mins = seconds / 60
         if mins < 26: return 0 # Short
@@ -52,7 +51,7 @@ def load_and_prep_data(df_or_path, limit=300):
         else: return 2 # Long
     df['duration_class'] = df['duration'].apply(get_duration_class)
     
-    # --- JOUR DE LA SEMAINE CIBLE (0-6) ---
+    # Jour de la semaine cible (0-6)
     df['target_dow'] = df['upload_date'].dt.dayofweek
     
     # Feature utile pour le modèle : distance au dimanche
@@ -62,7 +61,7 @@ def load_and_prep_data(df_or_path, limit=300):
         df = df.tail(limit).reset_index(drop=True)
     return df
 
-# --- 2. ENCODAGE ---
+# ENCODAGE DES TAGS ET CATÉGORIES
 def encode_labels(df):
     mlb_tags = MultiLabelBinarizer(sparse_output=False)
     tags_encoded = mlb_tags.fit_transform(df['tags'])
@@ -75,7 +74,7 @@ def encode_labels(df):
     
     return tags_encoded, cats_encoded, duration_encoded, dow_encoded, mlb_tags, mlb_cats
 
-# --- 3. SÉQUENCES ---
+# SÉQUENCES MULTI-SORTIES
 def create_multi_output_sequences(X_input, y_delay, y_dur_cls, y_dow, y_tags, y_cats, seq_len=10):
     X, Y_delay, Y_dur, Y_dow, Y_tags, Y_cats = [], [], [], [], [], []
     for i in range(len(X_input) - seq_len):
@@ -89,7 +88,7 @@ def create_multi_output_sequences(X_input, y_delay, y_dur_cls, y_dow, y_tags, y_
     return (np.array(X), 
             [np.array(Y_delay), np.array(Y_dur), np.array(Y_dow), np.array(Y_tags), np.array(Y_cats)])
 
-# --- 4. MODÈLE ---
+# MODÈLE PLANNER
 def build_planner_model(seq_len, n_features, n_tags, n_cats):
     inp = Input(shape=(seq_len, n_features))
     x = LSTM(128, return_sequences=True)(inp)
@@ -112,21 +111,22 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
         'tags_out': 'binary_crossentropy',
         'cats_out': 'binary_crossentropy'
     }
-    # Poids ajustés pour privilégier la régularité du jour
+    
+    # Poids d'importance des pertes
+    # 3.0 pour le jour de la semaine car régularité cruciale
     loss_weights = {'delay_out': 1.0, 'dur_out': 1.2, 'dow_out': 3.0, 'tags_out': 0.5, 'cats_out': 0.5}
     
     model.compile(optimizer='adam', loss=losses, loss_weights=loss_weights)
     return model
 
-# --- 5. LOGIQUE INTELLIGENTE (TagManager & Predict) ---
-
+# LOGIQUE INTELLIGENTE
 class TagManager:
     def __init__(self, df, mlb_tags):
         self.mlb = mlb_tags
         self.tag_names = mlb_tags.classes_
         self.n_tags = len(self.tag_names)
         
-        # 1. Matrice de Co-occurrence
+        # Matrice de Co-occurrence
         tags_matrix = mlb_tags.transform(df['tags'])
         self.co_occurrence = np.dot(tags_matrix.T, tags_matrix)
         
@@ -136,7 +136,7 @@ class TagManager:
             self.correlation = self.co_occurrence / diag[:, None]
         self.correlation = np.nan_to_num(self.correlation) 
 
-        # 2. Liens Tags <-> Durée
+        # Liens Tags <-> Durée
         self.tag_duration_profile = {}
         durations = df['duration_class'].values
         for i, tag in enumerate(self.tag_names):
@@ -163,7 +163,6 @@ class TagManager:
             if friendship_score > 0.1: 
                 if forced_duration_class is not None:
                     tag_avg_dur = self.tag_duration_profile[idx]
-                    # Si on veut du court (0) et que le tag est typiquement long (>1.5), on évite
                     if forced_duration_class == 0 and tag_avg_dur > 1.5:
                         continue
                 chosen_indices.append(idx)
@@ -171,7 +170,7 @@ class TagManager:
         return [self.tag_names[x] for x in chosen_indices]
 
 def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags, mlb_cats, df_train, start_date, n_steps=6):
-    # Initialisation du Manager
+    # Initialisation du manager
     tag_manager = TagManager(df_train, mlb_tags)
     
     current_seq = initial_seq.copy()
@@ -179,23 +178,21 @@ def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags,
     dow_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 
     print(f"\n{'='*60}")
-    print(f" PLANNING HIÉRARCHIQUE (LOGIQUE & COHÉRENCE V5)")
+    print(f"PLANNING HIÉRARCHIQUE")
     print(f"{'='*60}")
 
     for i in range(n_steps):
-        # --- 1. PRÉDICTION BRUTE ---
+        # PRÉDICTION BRUTE
         preds = model.predict(current_seq, verbose=0)
         pred_delay, pred_dur_probs, pred_dow_probs, pred_tags_probs, pred_cats = preds
         
-        # --- 2. LOGIQUE TEMPORELLE (Le "Quand") ---
+        # LOGIQUE TEMPORELLE
         raw_days = scaler_delay.inverse_transform(pred_delay)[0][0]
-        # On s'assure d'avancer d'au moins 1 jour
         days_to_add = max(1, int(round(raw_days)))
         approx_date = current_date + timedelta(days=days_to_add)
         
         # Gravité Dimanche
         prob_sunday = pred_dow_probs[0][6]
-        # CORRECTION ICI: .dayofweek est une propriété, pas une méthode ()
         dist_to_sunday = (6 - approx_date.dayofweek) % 7
         if dist_to_sunday > 3: dist_to_sunday -= 7
         closest_sunday = approx_date + timedelta(days=dist_to_sunday)
@@ -207,10 +204,9 @@ def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags,
             final_date = closest_sunday
             target_dow = 6 # Dimanche
         else:
-            # C'est une vidéo bonus (Semaine)
+            # C'est une vidéo bonus (en semaine)
             is_bonus_video = True
             target_dow = np.argmax(pred_dow_probs[0][:6]) # Max hors dimanche
-            # CORRECTION ICI: .dayofweek sans parenthèses
             diff = target_dow - approx_date.dayofweek
             final_date = approx_date + timedelta(days=diff)
 
@@ -218,15 +214,13 @@ def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags,
         real_wait = (final_date - current_date).days
         current_date = final_date
 
-        # --- 3. LOGIQUE FORMAT (Le "Combien de temps") ---
+        # LOGIQUE FORMAT
         if is_bonus_video:
-            # Bonus = Court ou Standard, jamais Long
+            # Bonus = court ou standard, jamais long
             final_dur_class = np.random.choice([0, 1], p=[0.7, 0.3])
-            origin_str = "(Forcé: Bonus)"
         else:
             # Dimanche = L'IA décide
             final_dur_class = np.random.choice([0, 1, 2], p=pred_dur_probs[0])
-            origin_str = "(Choix IA)"
             
         if final_dur_class == 0: duration_min = random.randint(15, 24)
         elif final_dur_class == 1: duration_min = random.randint(25, 40)
@@ -234,20 +228,20 @@ def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags,
         
         gen_duration_sec = duration_min * 60
 
-        # --- 4. LOGIQUE CONTENU (Le "Quoi") ---
+        # LOGIQUE CONTENU
         clean_tags = tag_manager.get_coherent_tags(pred_tags_probs[0], forced_duration_class=final_dur_class)
         if not clean_tags: clean_tags = ["Vrac"]
         
         cat_str = mlb_cats.classes_[np.argmax(pred_cats[0])]
 
-        # --- AFFICHAGE ---
-        icon = "🌟" if not is_bonus_video else "🎁"
+        # AFFICHAGE
         print(f"\n[{i+1}] {final_date.strftime('%A %d %B')} (+{real_wait}j)")
-        print(f"    {icon} Slot: {dow_names[target_dow]} | {origin_str}")
-        print(f"    ⏱️  Durée: {duration_min} min ({['Court','Standard','Long'][final_dur_class]})")
-        print(f"    🏷️  Tags: {', '.join(clean_tags)}")
+        print(f"    Slot: {dow_names[target_dow]}")
+        print(f"    Durée: {duration_min} min ({['Court','Standard','Long'][final_dur_class]})")
+        print(f"    Tags: {', '.join(clean_tags)}")
+        print(f"    Catégorie principale: {cat_str}")
         
-        # --- 5. REBOUCLAGE ---
+        # REBOUCLAGE
         d_sin = np.sin(2 * np.pi * target_dow / 7)
         d_cos = np.cos(2 * np.pi * target_dow / 7)
         m_sin = np.sin(2 * np.pi * final_date.month / 12)
@@ -262,29 +256,28 @@ def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags,
         
         new_row = np.array([[
             s_dur_scaled, s_day_scaled, s_views, s_likes, d_sin, d_cos, m_sin, m_cos, s_roll
-        ]]).reshape(1, 1, 9) # Reshape important
+        ]]).reshape(1, 1, 9)
         
         current_seq = np.concatenate([current_seq[:, 1:, :], new_row], axis=1)
 
-# --- 6. MAIN ---
+# MAIN
 def main():
-    # Adapter le chemin selon ton environnement
     csv_path = '../datasets/amixem_20251023.csv'
     
-    # 1. Chargement
+    # Chargement des données
     df = load_and_prep_data(csv_path, limit=300)
     
-    # 2. Encodage
+    # Encodage des labels
     tags_enc, cats_enc, dur_enc, dow_enc, mlb_t, mlb_c = encode_labels(df)
     
-    # 3. Scalers
+    # Scalers
     scaler_dur = StandardScaler().fit(df[['duration']])
     scaler_delay = StandardScaler().fit(df[['days_since_last']])
     
     rest_cols = ['log_views', 'log_likes', 'day_sin', 'day_cos', 'month_sin', 'month_cos', 'log_rolling_views']
     scaler_rest = StandardScaler().fit(df[rest_cols])
     
-    # 4. Construction X
+    # Construction X
     X_dur = scaler_dur.transform(df[['duration']])
     X_del = scaler_delay.transform(df[['days_since_last']])
     X_rest = scaler_rest.transform(df[rest_cols])
@@ -293,28 +286,25 @@ def main():
     # Targets
     Y_delay = scaler_delay.transform(df[['days_since_last']])
     
-    # 5. Séquences
+    # Séquences
     SEQ_LEN = 10
     X_seq, Y_all = create_multi_output_sequences(X_scaled, Y_delay, dur_enc, dow_enc, tags_enc, cats_enc, SEQ_LEN)
     
-    # 6. Entraînement
+    # Entraînement
     print("Entraînement du modèle V5 (Hierarchical Logic)...")
-    # Note : Assure-toi que X_scaled a bien 9 features comme attendu dans le reshape du predict
-    # (1 dur + 1 delay + 7 rest = 9 features -> OK)
     model = build_planner_model(SEQ_LEN, 9, tags_enc.shape[1], cats_enc.shape[1])
     
     early = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
     model.fit(X_seq, Y_all, epochs=50, batch_size=16, validation_split=0.2, callbacks=[early], verbose=0)
     
-    # 7. Sauvegarde
+    # Sauvegarde
     model.save('../models/planner_v5_hierarchical.keras')
     joblib.dump(scaler_dur, '../models/scaler_dur.pkl')
     joblib.dump(scaler_delay, '../models/scaler_delay.pkl')
     joblib.dump(mlb_t, '../models/mlb_tags.pkl')
     joblib.dump(mlb_c, '../models/mlb_cats.pkl')
     
-    # 8. Test Prédiction Hiérarchique
-    # On passe 'df' (l'historique complet) pour que le TagManager puisse calculer les matrices de corrélation
+    # Test prédiction hiérarchique
     predict_hierarchical(
         model=model, 
         initial_seq=X_seq[-1:], 
@@ -322,7 +312,7 @@ def main():
         scaler_dur=scaler_dur, 
         mlb_tags=mlb_t, 
         mlb_cats=mlb_c, 
-        df_train=df,  # <--- Ajouté ici
+        df_train=df,
         start_date=df['upload_date'].iloc[-1], 
         n_steps=8
     )

@@ -1,2 +1,6 @@
 
 /.venv
+/.streamlit
+.env
+.env
+/generativeAI
