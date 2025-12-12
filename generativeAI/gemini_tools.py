@@ -16,9 +16,6 @@ class IA:
         self.client = genai.Client(api_key=self.api_key)
 
     def generate_image(self, prompt):
-        """
-        Génère une image via Gemini et retourne une liste d'objets PIL.Image.
-        """
         try:
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash-image",
@@ -38,8 +35,46 @@ class IA:
             print(f"Erreur dans gemini_tools: {e}")
             return []
 
+    def generate_response(self, message, images=None, stream=False):
+        if images is None:
+            images = []
+        contents = [message] + images
+        model = "gemini-2.5-flash"
+
+        if stream:
+            response = self.client.models.generate_content_stream(
+                model=model, contents=contents
+            )
+            return response
+        else:
+            response = self.client.models.generate_content(
+                model=model, contents=contents
+            )
+            return response.text
+
+
+    def get_new_chat(self, functions=[]):
+        config = types.GenerateContentConfig(
+            tools=functions,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False)
+        )
+        return self.client.chats.create(model="gemini-2.5-flash", config=config)
+
+    def send_message(self, message, chat, stream=False):
+        if stream:
+            response = chat.send_message_stream(message)
+            return response
+        else:
+            response = chat.send_message(message)
+            return response.text
+
+
+
+
 
 if __name__ == "__main__":
     load_dotenv()
 
     gemini = IA(gemini_api_key=os.environ.get("GOOGLE_API_KEY"))
+    for chunk in gemini.generate_response("Explain how AI works.", stream=True):
+        print(chunk.text, end="")
