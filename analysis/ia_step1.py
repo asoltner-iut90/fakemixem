@@ -6,15 +6,13 @@ import pandas as pd
 import numpy as np
 import ast
 import joblib
-from datetime import timedelta
-import random
 from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
 from tensorflow.keras.callbacks import EarlyStopping
 
-# CHARGEMENT ET PREPARATION DES DONNÉES
+# --- 1. FONCTIONS DE PRÉPARATION ---
 def load_and_prep_data(df_or_path, limit=300):
     if isinstance(df_or_path, str):
         df = pd.read_csv(df_or_path)
@@ -35,10 +33,8 @@ def load_and_prep_data(df_or_path, limit=300):
     df['month_sin'] = np.sin(2 * np.pi * month / 12)
     df['month_cos'] = np.cos(2 * np.pi * month / 12)
     
-    # Rolling
+    # Rolling & Logs
     df['rolling_views'] = df['view_count'].shift(1).rolling(window=5).mean().bfill()
-    
-    # Logs
     df['log_views'] = np.log1p(df['view_count'])
     df['log_likes'] = np.log1p(df['likes'])
     df['log_rolling_views'] = np.log1p(df['rolling_views'])
@@ -46,22 +42,16 @@ def load_and_prep_data(df_or_path, limit=300):
     # Classification des durées
     def get_duration_class(seconds):
         mins = seconds / 60
-        if mins < 26: return 0 # Short
-        elif mins < 48: return 1 # Standard
-        else: return 2 # Long
+        if mins < 26: return 0 
+        elif mins < 48: return 1 
+        else: return 2 
     df['duration_class'] = df['duration'].apply(get_duration_class)
-    
-    # Jour de la semaine cible (0-6)
     df['target_dow'] = df['upload_date'].dt.dayofweek
-    
-    # Feature utile pour le modèle : distance au dimanche
-    df['days_until_sunday'] = (6 - df['upload_date'].dt.dayofweek) % 7
     
     if len(df) > limit:
         df = df.tail(limit).reset_index(drop=True)
     return df
 
-# ENCODAGE DES TAGS ET CATÉGORIES
 def encode_labels(df):
     mlb_tags = MultiLabelBinarizer(sparse_output=False)
     tags_encoded = mlb_tags.fit_transform(df['tags'])
@@ -71,24 +61,24 @@ def encode_labels(df):
     
     duration_encoded = to_categorical(df['duration_class'], num_classes=3)
     dow_encoded = to_categorical(df['target_dow'], num_classes=7)
-    
     return tags_encoded, cats_encoded, duration_encoded, dow_encoded, mlb_tags, mlb_cats
 
-# SÉQUENCES MULTI-SORTIES
-def create_multi_output_sequences(X_input, y_delay, y_dur_cls, y_dow, y_tags, y_cats, seq_len=10):
-    X, Y_delay, Y_dur, Y_dow, Y_tags, Y_cats = [], [], [], [], [], []
+def create_multi_output_sequences(X_input, y_delay, y_dur_cls, y_dur_scalar, y_dow, y_tags, y_cats, seq_len=10):
+    X, Y_delay, Y_dur_c, Y_dur_s, Y_dow, Y_tags, Y_cats = [], [], [], [], [], [], []
+    
     for i in range(len(X_input) - seq_len):
         X.append(X_input[i:i+seq_len])
         Y_delay.append(y_delay[i+seq_len])
-        Y_dur.append(y_dur_cls[i+seq_len])
+        Y_dur_c.append(y_dur_cls[i+seq_len])  
+        Y_dur_s.append(y_dur_scalar[i+seq_len])
         Y_dow.append(y_dow[i+seq_len])
         Y_tags.append(y_tags[i+seq_len])
         Y_cats.append(y_cats[i+seq_len])
         
     return (np.array(X), 
-            [np.array(Y_delay), np.array(Y_dur), np.array(Y_dow), np.array(Y_tags), np.array(Y_cats)])
+            [np.array(Y_delay), np.array(Y_dur_c), np.array(Y_dur_s), 
+             np.array(Y_dow), np.array(Y_tags), np.array(Y_cats)])
 
-# MODÈLE PLANNER
 def build_planner_model(seq_len, n_features, n_tags, n_cats):
     inp = Input(shape=(seq_len, n_features))
     x = LSTM(128, return_sequences=True)(inp)
@@ -96,178 +86,49 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
     x = LSTM(64)(x)
     x = Dropout(0.3)(x)
     
+    # --- LES SORTIES ---
     delay_out = Dense(1, name='delay_out')(Dense(32, activation='relu')(x))
-    dur_out = Dense(3, activation='softmax', name='dur_out')(Dense(32, activation='relu')(x))
+    
+    # Classification (Court/Moyen/Long) - Utile pour la cohérence des tags
+    dur_class_out = Dense(3, activation='softmax', name='dur_class_out')(Dense(32, activation='relu')(x))
+    
+    # NOUVEAU : Régression (Durée exacte)
+    dur_scalar_out = Dense(1, name='dur_scalar_out')(Dense(32, activation='relu')(x))
+    
     dow_out = Dense(7, activation='softmax', name='dow_out')(Dense(32, activation='relu')(x)) 
     tags_out = Dense(n_tags, activation='sigmoid', name='tags_out')(Dense(64, activation='relu')(x))
     cats_out = Dense(n_cats, activation='sigmoid', name='cats_out')(Dense(32, activation='relu')(x))
     
-    model = Model(inputs=inp, outputs=[delay_out, dur_out, dow_out, tags_out, cats_out])
+    model = Model(inputs=inp, outputs=[delay_out, dur_class_out, dur_scalar_out, dow_out, tags_out, cats_out])
     
     losses = {
         'delay_out': 'mse',
-        'dur_out': 'categorical_crossentropy',
+        'dur_class_out': 'categorical_crossentropy',
+        'dur_scalar_out': 'mse',
         'dow_out': 'categorical_crossentropy',
         'tags_out': 'binary_crossentropy',
         'cats_out': 'binary_crossentropy'
     }
     
-    # Poids d'importance des pertes
-    # 3.0 pour le jour de la semaine car régularité cruciale
-    loss_weights = {'delay_out': 1.0, 'dur_out': 1.2, 'dow_out': 3.0, 'tags_out': 0.5, 'cats_out': 0.5}
+    loss_weights = {
+        'delay_out': 1.0, 
+        'dur_class_out': 1.0, 
+        'dur_scalar_out': 2.0, # Poids élevé pour forcer la précision
+        'dow_out': 3.0, 
+        'tags_out': 0.5, 
+        'cats_out': 0.5
+    }
     
     model.compile(optimizer='adam', loss=losses, loss_weights=loss_weights)
     return model
 
-# LOGIQUE INTELLIGENTE
-class TagManager:
-    def __init__(self, df, mlb_tags):
-        self.mlb = mlb_tags
-        self.tag_names = mlb_tags.classes_
-        self.n_tags = len(self.tag_names)
-        
-        # Matrice de Co-occurrence
-        tags_matrix = mlb_tags.transform(df['tags'])
-        self.co_occurrence = np.dot(tags_matrix.T, tags_matrix)
-        
-        # Normalisation
-        diag = np.diag(self.co_occurrence)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            self.correlation = self.co_occurrence / diag[:, None]
-        self.correlation = np.nan_to_num(self.correlation) 
-
-        # Liens Tags <-> Durée
-        self.tag_duration_profile = {}
-        durations = df['duration_class'].values
-        for i, tag in enumerate(self.tag_names):
-            idxs = np.where(tags_matrix[:, i] == 1)[0]
-            if len(idxs) > 0:
-                self.tag_duration_profile[i] = np.mean(durations[idxs])
-            else:
-                self.tag_duration_profile[i] = 1.0 
-
-    def get_coherent_tags(self, raw_probs, forced_duration_class=None):
-        anchor_idx = np.argmax(raw_probs)
-        anchor_prob = raw_probs[anchor_idx]
-        
-        if anchor_prob < 0.1: return [] 
-        
-        chosen_indices = [anchor_idx]
-        potential_friends = np.where(raw_probs > 0.2)[0]
-        
-        for idx in potential_friends:
-            if idx == anchor_idx: continue
-            
-            friendship_score = self.correlation[anchor_idx][idx]
-            
-            if friendship_score > 0.1: 
-                if forced_duration_class is not None:
-                    tag_avg_dur = self.tag_duration_profile[idx]
-                    if forced_duration_class == 0 and tag_avg_dur > 1.5:
-                        continue
-                chosen_indices.append(idx)
-                
-        return [self.tag_names[x] for x in chosen_indices]
-
-def predict_hierarchical(model, initial_seq, scaler_delay, scaler_dur, mlb_tags, mlb_cats, df_train, start_date, n_steps=6):
-    # Initialisation du manager
-    tag_manager = TagManager(df_train, mlb_tags)
-    
-    current_seq = initial_seq.copy()
-    current_date = start_date
-    dow_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-
-    print(f"\n{'='*60}")
-    print(f"PLANNING HIÉRARCHIQUE")
-    print(f"{'='*60}")
-
-    for i in range(n_steps):
-        # PRÉDICTION BRUTE
-        preds = model.predict(current_seq, verbose=0)
-        pred_delay, pred_dur_probs, pred_dow_probs, pred_tags_probs, pred_cats = preds
-        
-        # LOGIQUE TEMPORELLE
-        raw_days = scaler_delay.inverse_transform(pred_delay)[0][0]
-        days_to_add = max(1, int(round(raw_days)))
-        approx_date = current_date + timedelta(days=days_to_add)
-        
-        # Gravité Dimanche
-        prob_sunday = pred_dow_probs[0][6]
-        dist_to_sunday = (6 - approx_date.dayofweek) % 7
-        if dist_to_sunday > 3: dist_to_sunday -= 7
-        closest_sunday = approx_date + timedelta(days=dist_to_sunday)
-        
-        is_bonus_video = False
-        
-        # Si on tombe proche d'un dimanche ou que l'IA est sûre que c'est dimanche
-        if abs((closest_sunday - approx_date).days) <= 1 or prob_sunday > 0.4:
-            final_date = closest_sunday
-            target_dow = 6 # Dimanche
-        else:
-            # C'est une vidéo bonus (en semaine)
-            is_bonus_video = True
-            target_dow = np.argmax(pred_dow_probs[0][:6]) # Max hors dimanche
-            diff = target_dow - approx_date.dayofweek
-            final_date = approx_date + timedelta(days=diff)
-
-        if final_date <= current_date: final_date = current_date + timedelta(days=1)
-        real_wait = (final_date - current_date).days
-        current_date = final_date
-
-        # LOGIQUE FORMAT
-        if is_bonus_video:
-            # Bonus = court ou standard, jamais long
-            final_dur_class = np.random.choice([0, 1], p=[0.7, 0.3])
-        else:
-            # Dimanche = L'IA décide
-            final_dur_class = np.random.choice([0, 1, 2], p=pred_dur_probs[0])
-            
-        if final_dur_class == 0: duration_min = random.randint(15, 24)
-        elif final_dur_class == 1: duration_min = random.randint(25, 40)
-        else: duration_min = random.randint(45, 70)
-        
-        gen_duration_sec = duration_min * 60
-
-        # LOGIQUE CONTENU
-        clean_tags = tag_manager.get_coherent_tags(pred_tags_probs[0], forced_duration_class=final_dur_class)
-        if not clean_tags: clean_tags = ["Vrac"]
-        
-        cat_str = mlb_cats.classes_[np.argmax(pred_cats[0])]
-
-        # AFFICHAGE
-        print(f"\n[{i+1}] {final_date.strftime('%A %d %B')} (+{real_wait}j)")
-        print(f"    Slot: {dow_names[target_dow]}")
-        print(f"    Durée: {duration_min} min ({['Court','Standard','Long'][final_dur_class]})")
-        print(f"    Tags: {', '.join(clean_tags)}")
-        print(f"    Catégorie principale: {cat_str}")
-        
-        # REBOUCLAGE
-        d_sin = np.sin(2 * np.pi * target_dow / 7)
-        d_cos = np.cos(2 * np.pi * target_dow / 7)
-        m_sin = np.sin(2 * np.pi * final_date.month / 12)
-        m_cos = np.cos(2 * np.pi * final_date.month / 12)
-        
-        s_views = current_seq[0, -1, 2] 
-        s_likes = current_seq[0, -1, 3]
-        s_roll = current_seq[0, -1, 8]
-        
-        s_dur_scaled = scaler_dur.transform([[gen_duration_sec]])[0][0]
-        s_day_scaled = scaler_delay.transform([[real_wait]])[0][0]
-        
-        new_row = np.array([[
-            s_dur_scaled, s_day_scaled, s_views, s_likes, d_sin, d_cos, m_sin, m_cos, s_roll
-        ]]).reshape(1, 1, 9)
-        
-        current_seq = np.concatenate([current_seq[:, 1:, :], new_row], axis=1)
-
-# MAIN
-def main():
+# --- 3. MAIN (TRAIN & SAVE) ---
+if __name__ == "__main__":
     csv_path = '../datasets/amixem_20251023.csv'
     
-    # Chargement des données
+    print("Chargement des données...")
     df = load_and_prep_data(csv_path, limit=300)
     
-    # Encodage des labels
     tags_enc, cats_enc, dur_enc, dow_enc, mlb_t, mlb_c = encode_labels(df)
     
     # Scalers
@@ -283,39 +144,23 @@ def main():
     X_rest = scaler_rest.transform(df[rest_cols])
     X_scaled = np.hstack([X_dur, X_del, X_rest])
     
-    # Targets
     Y_delay = scaler_delay.transform(df[['days_since_last']])
+    Y_dur_scalar = scaler_dur.transform(df[['duration']])
     
-    # Séquences
     SEQ_LEN = 10
-    X_seq, Y_all = create_multi_output_sequences(X_scaled, Y_delay, dur_enc, dow_enc, tags_enc, cats_enc, SEQ_LEN)
-    
-    # Entraînement
-    print("Entraînement du modèle V5 (Hierarchical Logic)...")
+    X_seq, Y_all = create_multi_output_sequences(X_scaled, Y_delay, dur_enc, Y_dur_scalar, dow_enc, tags_enc, cats_enc, SEQ_LEN)
+    print("Entraînement du modèle V5...")
     model = build_planner_model(SEQ_LEN, 9, tags_enc.shape[1], cats_enc.shape[1])
     
     early = EarlyStopping(monitor='val_loss', patience=15, restore_best_weights=True)
-    model.fit(X_seq, Y_all, epochs=50, batch_size=16, validation_split=0.2, callbacks=[early], verbose=0)
+    model.fit(X_seq, Y_all, epochs=50, batch_size=16, validation_split=0.2, callbacks=[early], verbose=1)
     
     # Sauvegarde
+    print("Sauvegarde des modèles dans ../models/ ...")
     model.save('../models/planner_v5_hierarchical.keras')
     joblib.dump(scaler_dur, '../models/scaler_dur.pkl')
     joblib.dump(scaler_delay, '../models/scaler_delay.pkl')
+    joblib.dump(scaler_rest, '../models/scaler_rest.pkl') # IMPORTANT: J'ai ajouté ce scaler manquant dans la sauvegarde
     joblib.dump(mlb_t, '../models/mlb_tags.pkl')
     joblib.dump(mlb_c, '../models/mlb_cats.pkl')
-    
-    # Test prédiction hiérarchique
-    predict_hierarchical(
-        model=model, 
-        initial_seq=X_seq[-1:], 
-        scaler_delay=scaler_delay, 
-        scaler_dur=scaler_dur, 
-        mlb_tags=mlb_t, 
-        mlb_cats=mlb_c, 
-        df_train=df,
-        start_date=df['upload_date'].iloc[-1], 
-        n_steps=8
-    )
-
-if __name__ == "__main__":
-    main()
+    print("Terminé.")

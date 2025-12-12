@@ -121,13 +121,13 @@ with llm:
 
 # Onglet Architecture IA
 with tech_tab:
-    st.header("Le Cerveau Hybride de l'IA")
+    st.header("Le cerveau hybride de l'IA")
 
     st.markdown("""
     Cette IA repose sur une approche **hybride** :  
     une base de prédiction issue d’un réseau de neurones, combinée à des 
     **règles inspirées du comportement réel** d’Amixem.  
-    Cette fusion permet d’obtenir des résultats réalistes, structurés et cohérents. UwU
+    Cette fusion permet d’obtenir des résultats réalistes, structurés et cohérents
     """)
 
     st.divider()
