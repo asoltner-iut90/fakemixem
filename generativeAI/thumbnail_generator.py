@@ -2,10 +2,10 @@ from google import genai
 from google.genai import types
 from PIL import Image
 import os
+from pathlib import Path
 
 # --- Fonction Collage (Inchangée) ---
 def create_collage_multi(image_paths_list):
-    print(f"--- Création du collage brut ---")
     loaded_images = []
     try:
         for path in image_paths_list:
@@ -29,6 +29,26 @@ def create_collage_multi(image_paths_list):
         return None
 
 
+def generate_thumbnail(client, prompt):
+    script_dir = Path(__file__).resolve().parent
+    files = [os.path.join(script_dir ,"yvan.jpg"),os.path.join(script_dir, "thomas.jpg")]
+    collage_input = create_collage_multi(files)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-image",
+        contents=[prompt, collage_input],
+        config=types.GenerateContentConfig(
+            image_config=types.ImageConfig(aspect_ratio="16:9"),
+            safety_settings=[
+                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
+                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH"),
+            ],
+        )
+    )
+    return response
+
+
+
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
@@ -36,54 +56,37 @@ if __name__ == "__main__":
 
     titre_video = "100 bêtes sauvages"
 
-    # Vos fichiers
-    files = ["yvan.jpg", "thomas.jpg"]
-    collage_input = create_collage_multi(files)
-    if not collage_input: exit()
-
     # --- PROMPT AVEC ZOOM OPTIMISÉ ---
-    prompt = (
-        "You are an expert YouTube thumbnail designer. "
-        "Task: Create a high-stakes 'Jungle Survival' movie poster using the people in this reference collage. "
+    prompt = f"""You are an expert YouTube thumbnail designer. 
+        Task: Create a high-stakes 'Jungle Survival' movie poster using the people in this reference collage. 
     
-        # --- A. CADRAGE ZOOMÉ (Plan Poitrine / Head & Shoulders) ---
-        "CRITICAL FRAMING: TIGHT HEAD AND SHOULDERS PORTRAIT. "
-        "The camera must be CLOSE to the faces. "
-        "Show the men from the top of their heads down to the MIDDLE OF THEIR CHEST only. "
-        "Do NOT show the stomach or waist. Zoom in! "
-        "Their faces must be large and dominant in the frame. "
+         --- A. CADRAGE ZOOMÉ (Plan Poitrine / Head & Shoulders) ---
+        CRITICAL FRAMING: TIGHT HEAD AND SHOULDERS PORTRAIT. 
+        The camera must be CLOSE to the faces. 
+        Show the men from the top of their heads down to the MIDDLE OF THEIR CHEST only. 
+        Do NOT show the stomach or waist. Zoom in! 
+        Their faces must be large and dominant in the frame. 
     
         # --- B. TYPOGRAPHIE (Ajustée au Zoom) ---
-        f"TYPOGRAPHY: Place the title '{titre_video}' at the BOTTOM CENTER. "
-        "Since the shot is tight, the text should OVERLAP their chest/shoulders area. "
-        "Style: MASSIVE, BOLD, 3D Sans-Serif font (Impact style). "
-        "Color: White/Yellow with thick black outline. "
-        "Add a dark shadow behind the text so it pops against the shirts. "
+        TYPOGRAPHY: Place the title '{titre_video}' at the BOTTOM CENTER. 
+        Since the shot is tight, the text should OVERLAP their chest/shoulders area. 
+        Style: MASSIVE, BOLD, 3D Sans-Serif font (Impact style). 
+        Color: White/Yellow with thick black outline. 
+        Add a dark shadow behind the text so it pops against the shirts. 
     
         # --- C. RESTE DU PROMPT ---
-        "COMPOSITION: Remove dividing lines. Unified jungle environment. "
-        "IDENTITY: Preserve facial features, hair, and beards exactly. "
-        "EXPRESSIONS: Intense, heroic, determined 'Survivor' looks. "
-        "ATTIRE: Clean adventurer shirts (Khaki). "
-        "BACKGROUND: Dense jungle, ancient ruins, dramatic lighting."
-    )
+        COMPOSITION: Remove dividing lines. Unified jungle environment. 
+        IDENTITY: Preserve facial features, hair, and beards exactly. 
+        EXPRESSIONS: Intense, heroic, determined 'Survivor' looks. 
+        ATTIRE: Clean adventurer shirts (Khaki). 
+        BACKGROUND: Dense jungle, ancient ruins, dramatic lighting."""
+
 
     print(f"\n--- Envoi avec Zoom 'Plan Poitrine' + Titre ---")
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-image",
-            contents=[prompt, collage_input],
-            config=types.GenerateContentConfig(
-                image_config=types.ImageConfig(aspect_ratio="16:9"),
-                safety_settings=[
-                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
-                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH"),
-                ]
-            )
-        )
-
         found = False
+        response = generate_thumbnail(client, prompt)
         if response.parts:
             for part in response.parts:
                 if part.inline_data:

@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import os
-from generativeAI.gemini_tools import IA 
+from generativeAI.gemini_tools import IA
+from generativeAI.assistant import Assistant
 
 # Configuration de la page
 st.set_page_config(
@@ -9,6 +10,24 @@ st.set_page_config(
     page_icon="🎬",
     layout="wide"
 )
+
+api_key = st.secrets.get("GOOGLE_API_KEY", os.environ.get("GOOGLE_API_KEY"))
+
+if "assistant" not in st.session_state and api_key:
+    ia = IA(api_key)
+    st.session_state.assistant = Assistant(ia)
+
+if "generated_images" not in st.session_state:
+    st.session_state.generated_images = []
+
+# Initialisation de l'historique du chat pour l'affichage
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# --- 4. INTERFACE UTILISATEUR (Structure demandée) ---
+
+# Définition du conteneur
+llm = st.container()
 
 hide_streamlit_style = """
 <style>
@@ -77,45 +96,65 @@ with llm:
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.header("Générateur d'images Gemini")
-        st.write("Décrivez une image et l'IA la créera pour vous.")
-
-        api_key = st.secrets.get("GOOGLE_API_KEY", os.environ.get("GOOGLE_API_KEY"))
+        st.header("Studio Créatif Amixem 🎬")
+        st.write("Décrivez un concept de vidéo, l'IA s'occupe du reste.")
 
         if not api_key:
             st.warning("⚠️ Clé API introuvable.")
         else:
-            prompt_input = st.text_area("Votre description (Prompt)", height=100,
-                                        placeholder="Ex: Un chat cosmonaute...")
-            generate_btn = st.button("✨ Générer l'image", type="primary")
+            # --- A. Affichage de l'historique ---
+            # On affiche les anciens messages ici, avant la zone de saisie
+            if st.session_state.chat_history:
+                with st.container(height=400, border=True):
+                    for msg in st.session_state.chat_history:
+                        with st.chat_message(msg["role"]):
+                            st.markdown(msg["content"])
+
+            # --- B. Zone de saisie ---
+            prompt_input = st.text_area("Votre message", height=100,
+                                        placeholder="Ex: On passe 24h dans un bunker en Lego... trouve un titre et fais la miniature.",
+                                        key="user_input")
+
+            generate_btn = st.button("✨ Envoyer / Générer", type="primary")
 
             # 1. Logique de génération
             if generate_btn and prompt_input:
-                with st.spinner("Gemini est en train de peindre..."):
-                    try:
-                        # Remplacer par ton import réel
-                        # mon_ia = IA(gemini_api_key=api_key)
-                        # images = mon_ia.generate_image(prompt_input)
-                        
-                        # Mock pour l'exemple
-                        import time
-                        time.sleep(2)
-                        images = ["https://via.placeholder.com/500"] 
+                # Ajout immédiat du message utilisateur à l'historique
+                st.session_state.chat_history.append({"role": "user", "content": prompt_input})
 
-                        if images:
-                            st.session_state.generated_images = images
-                        else:
-                            st.error("Aucune image n'a été retournée.")
+                with st.spinner("Le Directeur Artistique réfléchit..."):
+                    try:
+                        # Appel via la classe Assistant stockée en session
+                        assistant = st.session_state.assistant
+                        response_text = assistant.send_message(prompt_input)
+
+                        # Ajout de la réponse à l'historique
+                        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+
+                        # Force le rechargement pour afficher les nouveaux messages dans l'historique ci-dessus
+                        st.rerun()
+
                     except Exception as e:
                         st.error(f"Une erreur est survenue : {e}")
 
-            # 2. Logique d'affichage
+            # 2. Logique d'affichage des images (toujours en bas)
             if st.session_state.generated_images:
+                st.divider()
                 st.success("Image disponible !")
-                for img in st.session_state.generated_images:
-                    st.image(img, caption="Image générée", width="stretch") # Correction stretch valide uniquement pour certaines versions récentes, sinon use_column_width=True
 
-                if st.button("Effacer l'image"):
+                # Afficher la dernière image générée
+                last_img = st.session_state.generated_images[-1]
+                st.image(last_img, caption="Miniature générée", use_container_width=True)
+
+                # Afficher l'historique si plus d'une image
+                if len(st.session_state.generated_images) > 1:
+                    with st.expander("Voir l'historique des images"):
+                        cols = st.columns(3)
+                        for i, img in enumerate(st.session_state.generated_images[:-1]):
+                            with cols[i % 3]:
+                                st.image(img, use_container_width=True)
+
+                if st.button("Effacer les images"):
                     st.session_state.generated_images = []
                     st.rerun()
 

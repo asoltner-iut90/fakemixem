@@ -4,6 +4,7 @@ from google.genai import types
 from PIL import Image
 from dotenv import load_dotenv
 import os
+from generativeAI.thumbnail_generator import generate_thumbnail
 
 
 class IA:
@@ -53,10 +54,13 @@ class IA:
             return response.text
 
 
-    def get_new_chat(self, functions=[]):
+    def get_new_chat(self, functions=None, sys_prompt=None):
+        if functions is None:
+            functions = []
         config = types.GenerateContentConfig(
             tools=functions,
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False)
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
+            system_instruction=sys_prompt
         )
         return self.client.chats.create(model="gemini-2.5-flash", config=config)
 
@@ -67,6 +71,26 @@ class IA:
         else:
             response = chat.send_message(message)
             return response.text
+
+    def generate_thumbnail(self, prompt: str):
+        """
+        Génère la miniature d'une video Youtube
+        ATTENTION : Cette fonction ne retourne la miniature, juste une confirmation.
+
+        Args:
+            prompt: Le prompt decrivant la miniature
+        """
+
+        response = generate_thumbnail(self.client, prompt)
+        if response.parts:
+            for part in response.parts:
+                if part.inline_data:
+                    img = part.as_image()
+                    img.show()
+
+
+
+
 
 
 
