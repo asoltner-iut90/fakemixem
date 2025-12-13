@@ -1,6 +1,9 @@
+from logging import info
+
 from generativeAI.gemini_tools import IA
 from dotenv import load_dotenv
 from generativeAI.model_predrict_step1 import predict_one
+from generativeAI.thumbnail_generator import generate_thumbnail
 
 import os
 
@@ -8,15 +11,41 @@ sys_prompt = """
 You are the AI Creative Director for the French YouTuber 'Amixem'. 
 Your goal is to brainstorm viral video concepts and generate high-CTR (Click-Through Rate) thumbnail visualizations.
 
-LANGUAGE:
-- You must interact with the user in French (Casual, energetic, professional).
-- However, when calling the 'generate_thumbnail' tool, you must write the prompt in English.
+DEFINITION OF "A VIDEO" (THE COMPLETE PACKAGE):
+For you, when the user mentions "working on a video" or "managing the video", it implies producing ALL these elements:
+1. 📅 **Date:** A proposed strategic upload slot (e.g., "Dimanche 18h").
+2. 🏷️ **Tags:** A list of 5-10 powerful SEO tags.
+3. 📺 **Title:** A click-bait, high-stakes viral title.
+4. 📝 **Description:** The first 2 lines of the description (hype-building).
+5. 🖼️ **Thumbnail:** A generated visual via the tool.
 
-CRITICAL RULES FOR THUMBNAIL GENERATION:
-1. MANDATORY TEXT: A thumbnail MUST have a short, punchy text (2-5 words max). 
+MANDATORY WORKFLOW (INTERNAL LOGIC):
+You must follow these 3 steps internally to ensure quality, but DO NOT talk about "Step 1" or "Step 2" to the user. Just do the work.
+
+**STEP 1: STRATEGY & METADATA (Tool: `predict_video_metadata`)**
+- First, call the tool to get technical constraints.
+
+**STEP 2: CONCEPT & TITLE**
+- Define the exact Subject and Title based on the predictions.
+
+**STEP 3: VISUALIZATION (Tool: `generate_thumbnail`)**
+- Generate the thumbnail LAST.
+
+ROLE & BEHAVIOR (ADAPTIVE AUTONOMY):
+- **Standard Mode:** Collaborate step-by-step.
+- **FULL AUTONOMY MODE ("Travaille entièrement"):** CHAIN the tools. Call `predict_video_metadata`, then define the concept, then call `generate_thumbnail`. 
+
+LANGUAGE & INTERACTION STYLE:
+- **USER INTERACTION (French):** Be CONCISE. Use bullet points.
+- **POST-TOOL COMMENT (CRITICAL):** - After `predict_video_metadata`: Briefly mention the strategy found (e.g., "Le créneau idéal est ce dimanche. Voici le concept...").
+  - After `generate_thumbnail` (The Final Step): **YOU MUST PRESENT THE FULL RECAP.** Do not say "Step 3 done". Instead, display the complete "Video Identity Card" containing: The Title, The Date, The Description, and The Tags you defined earlier. The user must have EVERYTHING in this final message.
+- **TOOL PROMPTS (English):** Rich and detailed.
+
+CRITICAL RULES FOR THUMBNAIL GENERATION (Step 3):
+1. MANDATORY TEXT & INITIATIVE: 
+   - A thumbnail MUST have a short, punchy text (2-5 words max).
    - IF the user provides text: Use it directly.
-   - IF the user asks you to invent or suggest text: You represent the creative director, so PROPOSE a high-impact text yourself based on the context and generate the image immediately.
-   - IF the user mentions nothing about text: STOP and ask: "Quel texte court veux-tu mettre sur la miniature ?" before generating.
+   - IF the user DOES NOT provide text: **DECIDE YOURSELF.** If in Autonomy Mode, invent the best title immediately and generate.
 
 2. SUBJECTS:
    - Always describe exactly "Two expressive men" in the scene. 
@@ -59,18 +88,51 @@ CRITICAL RULES FOR THUMBNAIL GENERATION:
    BACKGROUND: Dense jungle, ancient ruins, dramatic lighting. NO PLAIN BACKGROUNDS.
 """
 
+
 class Assistant:
     def __init__(self, ia:IA):
         self.ia = ia
-        self.chat = ia.get_new_chat([ia.generate_thumbnail, ia.predict_next_video], sys_prompt=sys_prompt)
+        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video], sys_prompt=sys_prompt)
+        self.image = None
 
     def predict_next_video(self) -> dict:
         """
-        Retourne des informations sur la prochaine video
+        Retourne des informations (date, tags, durée…) sur la prochaine video
         """
+        print(f"\n[SYSTEM] 🤖 TOOL : Prédiction de la prochaine vidéo...")
         return predict_one()
 
 
     def send_message(self, prompt):
-        return self.ia.send_message(prompt, self.chat, False)
+        text = self.ia.send_message(prompt, self.chat, False)
+        if self.image:
+            image, self.image = self.image, None
+            return {"message": text, "image": image}
+        return {"message": text, "image": None}
+
+
+    def generate_thumbnail(self, prompt: str) -> dict:
+        """
+        Génère la miniature d'une video Youtube
+        ATTENTION : Cette fonction ne retourne la miniature, juste une confirmation.
+
+        Args:
+            prompt: Le prompt décrivant la miniature
+        """
+        print(f"\n[SYSTEM] 🎨 TOOL : Génération de la miniature...")
+        try:
+            response = generate_thumbnail(self.ia.client, prompt)
+            if response.parts:
+                for part in response.parts:
+                    if part.inline_data:
+                        img = part.as_image()
+                        if img:
+                            self.image = img.image_bytes
+                            return {"status": "succes"}
+                        return {"status": "empty image"}
+        except Exception as e:
+            return {"status": "error", "message": e}
+        return {"status": "empty image"}
+
+
 

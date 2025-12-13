@@ -4,7 +4,6 @@ from google.genai import types
 from PIL import Image
 from dotenv import load_dotenv
 import os
-from generativeAI.thumbnail_generator import generate_thumbnail
 
 
 class IA:
@@ -15,6 +14,7 @@ class IA:
             raise ValueError("Clé API manquante. Vérifiez .env ou st.secrets.")
 
         self.client = genai.Client(api_key=self.api_key)
+        self.images = {}
 
     def generate_image(self, prompt):
         try:
@@ -71,29 +71,6 @@ class IA:
         else:
             response = chat.send_message(message)
             return response.text
-
-    def generate_thumbnail(self, prompt: str):
-        """
-        Génère la miniature d'une video Youtube
-        ATTENTION : Cette fonction ne retourne la miniature, juste une confirmation.
-
-        Args:
-            prompt: Le prompt decrivant la miniature
-        """
-
-        response = generate_thumbnail(self.client, prompt)
-        if response.parts:
-            for part in response.parts:
-                if part.inline_data:
-                    img = part.as_image()
-                    img.show()
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":

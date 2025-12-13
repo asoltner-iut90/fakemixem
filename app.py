@@ -92,70 +92,79 @@ with data:
         st.download_button("Télécharger CSV", csv, "data.csv", "text/csv")
 
 # --- Onglet LLM ---
-with llm:
-    col1, col2, col3 = st.columns([1, 2, 1])
 
-    with col2:
+with llm:
+    # 1. EN-TÊTE CENTRÉ
+    col_h1, col_h2, col_h3 = st.columns([1, 2, 1])
+    with col_h2:
         st.header("Studio Créatif Amixem 🎬")
         st.write("Décrivez un concept de vidéo, l'IA s'occupe du reste.")
 
         if not api_key:
             st.warning("⚠️ Clé API introuvable.")
-        else:
-            # --- A. Affichage de l'historique ---
-            # On affiche les anciens messages ici, avant la zone de saisie
-            if st.session_state.chat_history:
-                with st.container(height=400, border=True):
-                    for msg in st.session_state.chat_history:
-                        with st.chat_message(msg["role"]):
-                            st.markdown(msg["content"])
 
-            # --- B. Zone de saisie ---
+    if api_key:
+        # 2. HISTORIQUE PLEINE LARGEUR (Full Width)
+        # Pas de colonnes ici, on utilise toute la largeur disponible
+        if st.session_state.chat_history:
+            with st.container(height=500, border=True):
+                for msg in st.session_state.chat_history:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
+                        # --- GESTION DE L'IMAGE AVEC COLONNES ---
+                        img_content = msg.get("image")
+                        if img_content:
+                            # ASTUCE: On utilise des colonnes pour limiter la largeur visuelle dans le chat
+                            # [2, 3] donne environ 40% de la largeur du conteneur (proche de 400px sur Desktop)
+                            col_img, col_void = st.columns([2, 3])
+                            with col_img:
+                                try:
+                                    # On retire 'width=400' qui casse le zoom
+                                    # On utilise 'use_container_width=True' pour remplir la petite colonne
+                                    st.image(img_content, use_container_width=True)
+                                except AttributeError:
+                                    if hasattr(img_content, "image_bytes"):
+                                        st.image(img_content.image_bytes, use_container_width=True)
+
+        # 3. ZONE DE SAISIE CENTRÉE
+        col_i1, col_i2, col_i3 = st.columns([1, 2, 1])
+        with col_i2:
             prompt_input = st.text_area("Votre message", height=100,
                                         placeholder="Ex: On passe 24h dans un bunker en Lego... trouve un titre et fais la miniature.",
                                         key="user_input")
 
             generate_btn = st.button("✨ Envoyer / Générer", type="primary")
 
-            # 1. Logique de génération
+            # --- Logique de génération (Centrée avec l'input) ---
             if generate_btn and prompt_input:
                 # Ajout immédiat du message utilisateur à l'historique
                 st.session_state.chat_history.append({"role": "user", "content": prompt_input})
 
                 with st.spinner("Le Directeur Artistique réfléchit..."):
                     try:
-                        # Appel via la classe Assistant stockée en session
+                        # Appel via la classe Assistant
                         assistant = st.session_state.assistant
-                        response_text = assistant.send_message(prompt_input)
+                        response = assistant.send_message(prompt_input)
 
                         # Ajout de la réponse à l'historique
-                        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+                        st.session_state.chat_history.append({
+                            "role": "assistant",
+                            "content": response["message"],
+                            "image": response["image"]
+                        })
 
-                        # Force le rechargement pour afficher les nouveaux messages dans l'historique ci-dessus
                         st.rerun()
 
                     except Exception as e:
                         st.error(f"Une erreur est survenue : {e}")
 
-            # 2. Logique d'affichage des images (toujours en bas)
+            # --- Affichage Image "Focus" (Optionnel, centré en bas) ---
             if st.session_state.generated_images:
                 st.divider()
-                st.success("Image disponible !")
-
-                # Afficher la dernière image générée
-                last_img = st.session_state.generated_images[-1]
-                st.image(last_img, caption="Miniature générée", use_container_width=True)
-
-                # Afficher l'historique si plus d'une image
-                if len(st.session_state.generated_images) > 1:
-                    with st.expander("Voir l'historique des images"):
-                        cols = st.columns(3)
-                        for i, img in enumerate(st.session_state.generated_images[:-1]):
-                            with cols[i % 3]:
-                                st.image(img, use_container_width=True)
-
-                if st.button("Effacer les images"):
+                # On affiche juste un petit rappel ou bouton clear centré
+                if st.button("Effacer l'historique des images"):
                     st.session_state.generated_images = []
+                    st.session_state.chat_history = []
                     st.rerun()
 
 # Onglet Architecture IA
