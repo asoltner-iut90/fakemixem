@@ -67,14 +67,6 @@ with home:
         except:
             st.info("Ajoutez une image 'thumbnail.png' à la racine pour la voir ici.")
 
-        nom = st.text_input("Entrez votre nom")
-        if nom:
-            st.success(f"Bonjour {nom}!")
-
-        if st.button("Cliquez-moi"):
-            st.balloons()
-            st.write("Merci d'avoir cliqué!")
-
 # --- Onglet Données ---
 with data:
     col1, col2, col3 = st.columns([1, 2, 1])
