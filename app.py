@@ -102,20 +102,18 @@ with llm:
                 for msg in st.session_state.chat_history:
                     with st.chat_message(msg["role"]):
                         st.markdown(msg["content"])
-                        # --- GESTION DE L'IMAGE AVEC COLONNES ---
-                        img_content = msg.get("image")
-                        if img_content:
-                            # ASTUCE: On utilise des colonnes pour limiter la largeur visuelle dans le chat
-                            # [2, 3] donne environ 40% de la largeur du conteneur (proche de 400px sur Desktop)
-                            col_img, col_void = st.columns([2, 3])
-                            with col_img:
-                                try:
-                                    # On retire 'width=400' qui casse le zoom
-                                    # On utilise 'use_container_width=True' pour remplir la petite colonne
-                                    st.image(img_content, use_container_width=True)
-                                except AttributeError:
-                                    if hasattr(img_content, "image_bytes"):
-                                        st.image(img_content.image_bytes, use_container_width=True)
+                        # --- GESTION DES IMAGES AVEC COLONNES ---
+                        images = msg.get("images", [])
+                        if images:
+                            for img_content in images:
+                                col_img, col_void = st.columns([2, 3])
+                                with col_img:
+                                    try:
+                                        # On utilise 'use_container_width=True' pour remplir la petite colonne
+                                        st.image(img_content, use_container_width=True)
+                                    except AttributeError:
+                                        if hasattr(img_content, "image_bytes"):
+                                            st.image(img_content.image_bytes, use_container_width=True)
 
         # 3. ZONE DE SAISIE CENTRÉE
         col_i1, col_i2, col_i3 = st.columns([1, 2, 1])
@@ -141,7 +139,7 @@ with llm:
                         st.session_state.chat_history.append({
                             "role": "assistant",
                             "content": response["message"],
-                            "image": response["image"]
+                            "images": response.get("images", [])
                         })
 
                         st.rerun()
@@ -339,3 +337,4 @@ with tech_tab:
         st.caption("Durée (Courte vs Longue)")
         st.progress(0.6)
         st.markdown("*L'IA pénalise les formats courts le dimanche.*")
+

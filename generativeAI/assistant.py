@@ -123,7 +123,7 @@ class Assistant:
     def __init__(self, ia:IA):
         self.ia = ia
         self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video, self.predict_n_next_videos, self.get_n_last_video_titles], sys_prompt=sys_prompt)
-        self.image = None
+        self.images = []
 
     def predict_next_video(self) -> dict:
         """
@@ -145,10 +145,9 @@ class Assistant:
 
     def send_message(self, prompt):
         text = self.ia.send_message(prompt, self.chat, False)
-        if self.image:
-            image, self.image = self.image, None
-            return {"message": text, "image": image}
-        return {"message": text, "image": None}
+        data =  {"message": text, "images": self.images}
+        self.images = []
+        return data
 
 
     def generate_thumbnail(self, prompt: str, actors:list[str]) -> dict:
@@ -173,7 +172,7 @@ class Assistant:
                     if part.inline_data:
                         img = part.as_image()
                         if img:
-                            self.image = img.image_bytes
+                            self.images.append(img)
                             return {"status": "succes"}
                         return {"status": "empty image"}
         except Exception as e:
