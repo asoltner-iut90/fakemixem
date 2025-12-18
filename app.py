@@ -94,7 +94,6 @@ with data:
 # --- Onglet LLM ---
 
 with llm:
-    # 1. EN-TÊTE CENTRÉ
     col_h1, col_h2, col_h3 = st.columns([1, 2, 1])
     with col_h2:
         st.header("Studio Créatif Amixem 🎬")
@@ -169,17 +168,23 @@ with llm:
 
 # Onglet Architecture IA
 with tech_tab:
-    st.header("Le cerveau hybride de l'IA")
+    st.header("🧠 Le cerveau hybride de l'IA")
 
     st.markdown("""
-    Cette IA repose sur une approche **hybride** :  
-    une base de prédiction issue d’un réseau de neurones, combinée à des 
-    **règles inspirées du comportement réel** d’Amixem.  
-    Cette fusion permet d’obtenir des résultats réalistes, structurés et cohérents
+    Cette IA repose sur une approche **en deux temps** :  
+    1. **Le Planificateur (Phase 1)** : Un réseau de neurones (LSTM) qui imagine le calendrier et le contenu.
+    2. **L'Analyste (Phase 2)** : Un algorithme de Forêts Aléatoires qui estime le succès de ce contenu.
+    
+    Cette séparation permet d'avoir d'un côté la créativité (imaginer des vidéos) et de l'autre le réalisme (prédire les vues).
     """)
+    
+    st.divider()
+    
+    st.header("Phase 1 : Le Planificateur de Contenu")
 
     st.divider()
 
+    # --- PARTIE 1 : PLANIFICATION ---
     st.subheader("1. La gravité du dimanche")
 
     col1, col2 = st.columns([1, 1])
@@ -189,17 +194,17 @@ with tech_tab:
             digraph {
                 rankdir=TB;
                 node [shape=box, style=filled, color="#444", fillcolor="#f7f7f9", fontname="sans-serif"];
-            IA [label="Prédiction brute\n(Jour estimé)", shape=ellipse, fillcolor="#ffe5b4"];
-            Adjust [label="Correction\npost-processing", shape=diamond, fillcolor="#d6eaff"];
+                IA [label="Prédiction brute\n(Jour estimé)", shape=ellipse, fillcolor="#ffe5b4"];
+                Adjust [label="Correction\npost-processing", shape=diamond, fillcolor="#d6eaff"];
 
-            Sunday [label="→ Décalage vers dimanche\n(Grosse vidéo)", fillcolor="#c8ffcf"];
-            Week [label="→ Maintien en semaine\nBonus/Standard", fillcolor="#fff7c2"];
+                Sunday [label="→ Décalage vers dimanche\n(Grosse vidéo)", fillcolor="#c8ffcf"];
+                Week [label="→ Maintien en semaine\nBonus/Standard", fillcolor="#fff7c2"];
 
-            IA -> Adjust;
-            Adjust -> Sunday [label="Si proche dimanche"];
-            Adjust -> Week [label="Sinon"];
-        }
-    """)
+                IA -> Adjust;
+                Adjust -> Sunday [label="Si proche dimanche"];
+                Adjust -> Week [label="Sinon"];
+            }
+        """)
 
     with col2:
         st.markdown("""
@@ -216,17 +221,7 @@ with tech_tab:
         Le dimanche concentre généralement les **grosses vidéos** : plus longues, plus ambitieuses, plus travaillées.  
         Le post-processing agit donc comme une **force d’attraction contrôlée**, qui réaligne la prédiction brute
         sur un schéma de publication crédible.
-
-        ### Effets naturels
-        - **Dimanche = formats longs**  
-        Les vidéos majeures ont plus de chances d'être programmées ce jour-là.
-
-        - **Semaine = formats bonus**  
-        Les contenus plus courts ou plus spontanés restent en semaine.
-
-        Ce mécanisme garantit une dynamique temporelle fidèle à ce que l’on observe réellement.
         """)
-
 
     st.divider()
 
@@ -247,44 +242,108 @@ with tech_tab:
     st.markdown("""
     L’IA s’appuie sur un réseau d'affinités entre les tags (matrice de co-occurrence) :   
     certains apparaissent souvent ensemble, d'autres jamais.
-
-    ### Comment fonctionne cette cohérence ?
-    - Le tag principal (le plus pertinent) sert de **pivot**  
-    - On lui associe ensuite des tags **compatibles**, basés sur l’historique réel
-    - Les associations incongrues sont **éliminées** naturellement
-    - Certains tags ne sont retenus que s’ils correspondent au format (court / long)
     """)
 
     st.divider()
 
-    st.subheader("3. Ce que l'IA apprend en premier (priorités)")
-
-    st.markdown("""
-    Toutes les informations n'ont pas la même importance, on change donc leurs poids dans le modèle.  
-    L'IA apprend à prioriser certains aspects qui ont plus d'impact que d'autres.
-    """)
+    st.subheader("3. Priorités d'apprentissage")
 
     colA, colB, colC = st.columns(3)
 
     with colA:
-        st.metric(label="Jour de publication", value="Priorité maximale")
+        st.metric(label="Jour de publication", value="Priorité Max")
         st.progress(1.00)
-        st.caption("Les habitudes de publication sont cruciales pour un planning réaliste. Ces données sont utilisées dans les autres étapes de prédiction/de génération, il est important qu'elles soient réalistes.")
-
+        
     with colB:
-        st.metric(label="Durée / Format", value="Priorité élevée")
+        st.metric(label="Durée / Format", value="Priorité Haute")
         st.progress(0.80)
-        st.caption("La durée influence également le reste de la prédiction/génération. On met donc un poids important sur cette donnée car les formats courts et longs ont des caractéristiques différentes.")
 
     with colC:
-        st.metric(label="Tags & catégories", value="Priorité flexible")
+        st.metric(label="Tags & catégories", value="Priorité Moyenne")
         st.progress(0.30)
-        st.caption("Les tags sont principalement gérés par notre post-processing. La catégorie ne changent presque jamais dans notre dataset, elle a donc un poids faible dans la prédiction initiale.")
-
+        
     st.divider()
 
+    st.header("Phase 2 : L'analyste de o-performance")
+    
     st.markdown("""
-    Notre **phase 1** de l'IA combine un LTSM pour la **prédiction initiale** et un système de **règles** pour le post-processing.  
-    Cela nous permet d'obtenir des résultats **cohérents** pour permettre un meilleur prédiction en phase 2 et une meilleure génération finale.
+    Une fois la vidéo imaginée (Titre, Date, Durée), nous passons le relais à une seconde IA spécialisée.
+    Son but n'est pas de créer, mais de **juger**.
     """)
 
+    col_p2_1, col_p2_2 = st.columns([1, 1])
+    
+    with col_p2_1:
+        st.markdown("#### Le Conseil des Experts (Random Forest)")
+        st.write("""
+        Pour prédire le nombre de vues, nous n'utilisons pas une seule formule mathématique, mais un **algorithme de Forêts Aléatoires**.
+        
+        Imaginez réunir **200 experts YouTube** dans une pièce.
+        - L'expert A regarde uniquement la durée de la vidéo.
+        - L'expert B regarde si c'est les vacances scolaires.
+        - L'expert C analyse les mots-clés ("Réaction" vs "Voyage").
+        
+        À la fin, l'IA fait la **moyenne** de ces 200 avis pour donner une estimation robuste, qui évite les erreurs grossières.
+        """)
+        
+        st.info("""
+        **Pourquoi c'est efficace ?** Contrairement à une régression linéaire simple, ce modèle comprend les règles non-linéaires 
+        (ex: une vidéo très longue marche bien le dimanche, mais mal le mardi).
+        """)
+
+    with col_p2_2:
+        st.graphviz_chart("""
+            digraph {
+                rankdir=TD;
+                node [shape=box, style=filled, fillcolor="#fff", fontname="sans-serif"];
+                
+                Input [label="Entrée Phase 1\n(Date, Durée, Tags)", shape=note, fillcolor="#e1f5fe"];
+                
+                subgraph cluster_forest {
+                    label = "Random Forest (200 Arbres)";
+                    style=dashed;
+                    color="#aaa";
+                    bgcolor="#f9f9f9";
+                    
+                    Tree1 [label="Arbre 1\n(Analyse Durée)", fontsize=10];
+                    Tree2 [label="Arbre 2\n(Analyse Saison)", fontsize=10];
+                    Tree3 [label="Arbre 3\n(Analyse Mots)", fontsize=10];
+                    TreeN [label="...", shape=plaintext];
+                }
+                
+                Avg [label="Moyenne\ndes prédictions", shape=diamond, fillcolor="#d6eaff"];
+                Output [label="Sortie Finale\n(Vues, Likes, Commentaires)", shape=ellipse, fillcolor="#c8ffcf", style="filled,bold"];
+
+                Input -> Tree1;
+                Input -> Tree2;
+                Input -> Tree3;
+                
+                Tree1 -> Avg;
+                Tree2 -> Avg;
+                Tree3 -> Avg;
+                
+                Avg -> Output;
+            }
+        """)
+
+    st.markdown("#### Les variables clés pour l'IA")
+    
+    col_var1, col_var2, col_var3 = st.columns(3)
+    
+    with col_var1:
+        st.markdown("**1. La Temporalité**")
+        st.caption("Mois, Jour de la semaine, Vacances")
+        st.progress(0.9)
+        st.markdown("*L'IA sait que Décembre est un mois fort.*")
+
+    with col_var2:
+        st.markdown("**2. Le Contenu (Tags)**")
+        st.caption("Analyse TF-IDF (Poids des mots)")
+        st.progress(0.7)
+        st.markdown("*L'IA sait que 'Concept' performe mieux que 'Vlog'.*")
+        
+    with col_var3:
+        st.markdown("**3. Le Format**")
+        st.caption("Durée (Courte vs Longue)")
+        st.progress(0.6)
+        st.markdown("*L'IA pénalise les formats courts le dimanche.*")

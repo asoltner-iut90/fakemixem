@@ -2,7 +2,7 @@ from logging import info
 
 from generativeAI.gemini_tools import IA
 from dotenv import load_dotenv
-from generativeAI.model_predrict_step1 import predict_one
+from generativeAI.master_generator import generate_full_prediction
 from generativeAI.thumbnail_generator import generate_thumbnail
 
 import os
@@ -129,7 +129,14 @@ class Assistant:
         Retourne des informations (date, tags, durée…) sur la prochaine video
         """
         print(f"\n[SYSTEM] 🤖 TOOL : Prédiction de la prochaine vidéo...")
-        return predict_one()
+        return generate_full_prediction(1)[0]
+    
+    def predict_n_next_videos(self, nb_videos: int = 1) -> dict:
+        """
+        Retourne des informations (date, tags, durée…) sur les n prochaines videos
+        """
+        print(f"\n[SYSTEM] 🤖 TOOL : Prédiction de la prochaine vidéo...")
+        return generate_full_prediction(nb_videos)
 
 
     def send_message(self, prompt):

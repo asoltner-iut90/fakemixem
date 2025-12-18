@@ -32,7 +32,7 @@ def create_collage_multi(image_paths_list):
 images = {
     "yvan": "yvan.jpg",
     "thomas": "thomas.jpg",
-    "maxime": "maxime.jpg",
+    "maxime": "maxime.png",
     "etienne": "etienne.jpg",
 }
 
