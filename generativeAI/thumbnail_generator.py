@@ -29,9 +29,21 @@ def create_collage_multi(image_paths_list):
         return None
 
 
-def generate_thumbnail(client, prompt):
+images = {
+    "yvan": "yvan.jpg",
+    "thomas": "thomas.jpg",
+    "maxime": "maxime.jpg",
+    "etienne": "etienne.jpg",
+}
+
+def generate_thumbnail(client, prompt, photos=None):
+    if photos is None:
+        photos = ["yvan", "thomas"]
     script_dir = Path(__file__).resolve().parent
-    files = [os.path.join(script_dir ,"yvan.jpg"),os.path.join(script_dir, "thomas.jpg")]
+
+    files = []
+    for photo in photos:
+        files.append(os.path.join(script_dir, images[photo]))
     collage_input = create_collage_multi(files)
     response = client.models.generate_content(
         model="gemini-2.5-flash-image",
