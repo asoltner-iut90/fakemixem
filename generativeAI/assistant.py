@@ -4,6 +4,7 @@ from generativeAI.gemini_tools import IA
 from dotenv import load_dotenv
 from generativeAI.master_generator import generate_full_prediction
 from generativeAI.thumbnail_generator import generate_thumbnail
+from datasets.datasets_functions import get_n_last_video_titles
 
 import os
 
@@ -121,7 +122,7 @@ CRITICAL RULES FOR THUMBNAIL GENERATION (Step 3):
 class Assistant:
     def __init__(self, ia:IA):
         self.ia = ia
-        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video], sys_prompt=sys_prompt)
+        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video, self.predict_n_next_videos, self.get_n_last_video_titles], sys_prompt=sys_prompt)
         self.image = None
 
     def predict_next_video(self) -> dict:
@@ -134,8 +135,11 @@ class Assistant:
     def predict_n_next_videos(self, nb_videos: int = 1) -> dict:
         """
         Retourne des informations (date, tags, durée…) sur les n prochaines videos
+
+        Args:
+            nb_videos: Nombre de vidéos à prédire
         """
-        print(f"\n[SYSTEM] 🤖 TOOL : Prédiction de la prochaine vidéo...")
+        print(f"\n[SYSTEM] 🤖 TOOL : Prédiction des {nb_videos} prochaine vidéo...")
         return generate_full_prediction(nb_videos)
 
 
@@ -176,5 +180,16 @@ class Assistant:
             return {"status": "error", "message": e}
         return {"status": "empty image"}
 
+
+    def get_n_last_video_titles(self, n: int = 50) -> list[str]:
+        """
+        Récupère le titre des n dernières vidéo pour s'en inspirer ou faire une suite
+        :param n:
+        Indique le nombre de titres
+        :return:
+        Retourne une liste de chaines de caractère qui sont les titres des n dernières videos
+        """
+        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} derniers titres...")
+        return get_n_last_video_titles(n)
 
 
