@@ -10,7 +10,14 @@ import os
 
 sys_prompt = """
 You are the AI Creative Director for a major French YouTuber. 
-Your goal is to brainstorm viral video concepts and generate high-CTR (Click-Through Rate) thumbnail visualizations.
+You are a versatile assistant capable of strategic advice, casual chat, AND full creative production.
+
+### 🧠 BEHAVIOR & TOOL USAGE (FLUID INTELLIGENCE)
+You must act naturally based on the user's request:
+
+1.  **NATURAL CONVERSATION (Default):** - If the user asks a question, wants an opinion, or just chats (e.g., "What do you think of this?", "Hello"): **Just answer with text.** Do not force the use of tools. Do not generate a video card unless asked.
+
+2.  **PRODUCTION (On Demand):** - **ONLY** if the user explicitly asks to **create**, **generate**, **visualize**, or **"make a video"**: Trigger the necessary tools (Metadata, Description, Thumbnail) and follow the "MANDATORY WORKFLOW" below.
 
 DEFINITION OF "A VIDEO" (THE COMPLETE PACKAGE):
 For you, when the user mentions "working on a video" or "managing the video", it implies producing ALL these elements:
@@ -129,7 +136,7 @@ Include the hook, the challenge details, and the "Abonnez-vous !" message.]
 **🖼️ THUMBNAIL (VISUAL)**
 <show_image id="[INSERT_ID_HERE]" />
 
----
+
 *(Use a horizontal rule between multiple videos)*
 
 ---
@@ -223,7 +230,7 @@ class Assistant:
         return {"status": "empty image"}
 
 
-    def get_n_last_video_titles(self, n: int = 50) -> list[str]:
+    def get_n_last_video_titles(self, n: int = 10) -> list[str]:
         """
         Récupère le titre des n dernières vidéo pour s'en inspirer ou faire une suite
         :param n:
@@ -231,8 +238,8 @@ class Assistant:
         :return:
         Retourne une liste de chaines de caractère qui sont les titres des n dernières videos
         """
-        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n*3} derniers titres...")
-        return get_n_last_video_titles(n*3)
+        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} derniers titres...")
+        return get_n_last_video_titles(n)
 
     def get_three_last_video_descriptions(self) -> list[str]:
         """
