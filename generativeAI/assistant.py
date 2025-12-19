@@ -201,7 +201,7 @@ class Assistant:
 
     def get_n_last_video_descriptions(self, n: int = 5) -> list[str]:
         """
-        Récupère la description des n dernières vidéo pour s'en inspirer ou faire une suite
+        Récupère la description des n dernières vidéo pour s'en inspirer
         :param n:
         Indique le nombre de descriptions
         :return:
