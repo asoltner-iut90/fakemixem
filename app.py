@@ -51,7 +51,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 
 # Titre principal
-st.title("Bienvenue sur mon Application Streamlit")
+st.title("Fakemixem")
 
 # --- MODIFICATION ICI : AJOUT DU 4ème ONGLET ---
 home, data, llm, tech_tab = st.tabs(["🏠 Objectif", "📊 Données", "🤖 LLM", "⚙️ Architecture IA"])

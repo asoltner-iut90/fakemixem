@@ -63,11 +63,14 @@ You must follow these steps internally to ensure quality.
 - Define the Subject and **APPLY CASTING LOGIC**.
 - Decide strictly who is filming (e.g., "Amixem + Thomas").
 
-**STEP 3: DESCRIPTION WRITING (Tool: `generate_description`)**
-- **ACTION:** Call `generate_description` **WITHOUT ARGUMENTS**.
-- **CONTEXT:** The tool will provide REAL EXAMPLES of successful descriptions (Style Guide).
-- **WRITING TASK:** Read the examples provided by the tool. Then, **WRITE the description yourself** for the current video concept, strictly mimicking the structure, tone, and length of the examples provided.
-
+**STEP 3: DESCRIPTION STRATEGY (Tool: `generate_description`)**
+- **ACTION:** Call `generate_description` **WITHOUT ARGUMENTS** (to get style examples).
+- **WRITING TASK:** You must write a **FULL DESCRIPTION** following this STRICT 4-PART STRUCTURE:
+  1. **THE HOOK (Unique):** 2-3 lines summarizing the specific video challenge/concept.
+  2. **THE SPONSOR (Placeholder):** "Collaboration Commerciale. Téléchargez [APP NAME] gratuitement : [LINK]"
+  3. **THE PROMO (Static):** "Ma boutique SPACEFOX.shop, -50% sur notre bomber ISS : https://bit.ly/spcfx-shop"
+  4. **THE FOOTER (Static):** You MUST copy/paste the social links and credits block provided in the "REFERENCE EXAMPLES" below.
+  
 **STEP 4: VISUALIZATION (Tool: `generate_thumbnail`)**
 - Generate the thumbnail LAST.
 - **Capture the ID** returned by the tool.
@@ -168,7 +171,7 @@ Include the hook, the challenge details, and the "Abonnez-vous !" message.]
 class Assistant:
     def __init__(self, ia:IA):
         self.ia = ia
-        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_n_next_videos, self.get_n_last_video_titles, self.get_n_last_video_descriptions], sys_prompt=sys_prompt)
+        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_n_next_videos, self.get_n_last_video_titles, self.get_three_last_video_descriptions], sys_prompt=sys_prompt)
         self.images = {}
 
     
@@ -228,10 +231,10 @@ class Assistant:
         :return:
         Retourne une liste de chaines de caractère qui sont les titres des n dernières videos
         """
-        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} derniers titres...")
-        return get_n_last_video_titles(n)
+        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n*3} derniers titres...")
+        return get_n_last_video_titles(n*3)
 
-    def get_n_last_video_descriptions(self, n: int = 3) -> list[str]:
+    def get_three_last_video_descriptions(self) -> list[str]:
         """
         Récupère la description des n dernières vidéo pour s'en inspirer
         :param n:
@@ -239,7 +242,7 @@ class Assistant:
         :return:
         Retourne une liste de chaines de caractère qui sont les descriptions des n dernières videos
         """
-        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} dernières descriptions...")
-        return get_n_last_descriptions(n)
+        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des 3 dernières descriptions...")
+        return get_n_last_descriptions(3)
 
 
