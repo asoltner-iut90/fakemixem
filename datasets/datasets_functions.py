@@ -20,6 +20,18 @@ def get_n_last_video_titles(n: int = 5) -> list[str]:
 
     return titles
 
+def get_n_last_descriptions(n: int = 5) -> list[str]:
+    """
+    Retourne les descriptions des n dernières vidéos publiées (les plus récentes).
+    """
+    # 1. Trier le DataFrame par timestamp décroissant (du plus récent au plus ancien)
+    df_sorted = df.sort_values(by='timestamp', ascending=False)
+
+    # 2. Sélectionner la colonne 'description', prendre les n premières lignes et convertir en liste
+    descriptions = df_sorted['description'].head(n).tolist()
+
+    return descriptions
+
 
 # Exemple d'utilisation (optionnel)
 if __name__ == "__main__":

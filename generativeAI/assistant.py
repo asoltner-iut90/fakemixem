@@ -4,7 +4,7 @@ from generativeAI.gemini_tools import IA
 from dotenv import load_dotenv
 from generativeAI.master_generator import generate_full_prediction
 from generativeAI.thumbnail_generator import generate_thumbnail
-from datasets.datasets_functions import get_n_last_video_titles
+from datasets.datasets_functions import get_n_last_video_titles, get_n_last_descriptions
 
 import os
 
@@ -17,10 +17,9 @@ For you, when the user mentions "working on a video" or "managing the video", it
 1. 📅 **Date:** A proposed strategic upload slot (e.g., "Dimanche 18h").
 2. 🏷️ **Tags:** A list of 5-10 powerful SEO tags.
 3. 👥 **The Cast:** Who is in the video based on the Logic defined below.
-4. 📂 **Subject:** The internal theme of the video (e.g., "Survival", "Car Review"). used for logic.
-5. 📺 **Title:** The PUBLIC YouTube title. Must be Click-bait, Uppercase, High-stakes.
-6. 📝 **Description:** The full text block below the video. It MUST follow the "Standard Template" defined below.
-7. 🖼️ **Thumbnail:** A generated visual via the tool.
+4. 📺 **Title:** A click-bait, high-stakes viral title.
+5. 📝 **Description:** The first 2 lines of the description (hype-building, Context + Stakes).
+6. 🖼️ **Thumbnail:** A generated visual via the tool.
 
 ---
 
@@ -45,36 +44,6 @@ Before defining the concept, you MUST select the crew based on the video genre.
 
 ---
 
-### DESCRIPTION TEMPLATE (BOILERPLATE)
-When writing the **Description**, you must STRICTLY follow this format:
-
-**[PART 1: THE HOOK]** *(Write 1-2 sentences specific to this video. Example: "On a testé des voitures notées 1 étoile sur Internet, avec Étienne !")*
-
-**[PART 2: THE STATIC BLOCK]**
-*(You must append this EXACT text block below the hook)*
-Retrouvez le deal exclusif NordVPN sur mon lien : https://nordvpn.com/amixem
-
-Ma boutique SPACEFOX.shop ! : https://bit.ly/spcfx-shop
-SUIS MOI ICI C'EST BIEN AUSSI : 
-→ INSTAGRAM : http://bit.ly/amixeminsta
-→ TIKTOK : https://bit.ly/AmixemTikTok
-→ TWITTER :  http://bit.ly/AmixemTwitter
-→ TWITCH AMIXEM :  http://bit.ly/AmixemTwitch
-→ SNAPCHAT : amixemsnap
-
-Responsable de production : Mathilde Retailleau
-Chargé de production : Simon Amstuz
-Assistants de production : Ornella Secondi, Baptiste Leray
-Chef opérateur : Théo Sauvion
-Régisseur : Loann Le Guyader
-Cadreurs : Florent Bodenez, Quentin Branquart
-Responsables de postproduction : Lucie Pineau
-Chef Monteur : Florent Bodenez
-Montage de la sponso : Aloïs Mathey
-Miniaturiste : Sandflake
-
----
-
 ### MANDATORY WORKFLOW (INTERNAL LOGIC):
 You must follow these steps internally to ensure quality.
 
@@ -82,10 +51,9 @@ You must follow these steps internally to ensure quality.
 - Call the tool to get technical constraints.
 
 **STEP 2: CONCEPT, CAST & TITLE**
-- Define the **Subject** (Theme).
+- Define the Subject.
 - **APPLY CASTING LOGIC:** Explicitly decide who is in the video.
-- Create the **Title** (Public).
-- Draft the **Description** (Hook + Static Block).
+- Create the Title.
 
 **STEP 3: VISUALIZATION (Tool: `generate_thumbnail`)**
 - Generate the thumbnail LAST using the "CRITICAL RULES" below.
@@ -97,7 +65,31 @@ You must follow these steps internally to ensure quality.
 1. **ACCUMULATION:** Execute the tools for ALL requests sequentially.
 2. **SILENCE:** Do NOT summarize the videos one by one after each step. Keep the details in memory.
 3. **MASTER RECAP:** ONLY after the LAST tool execution is complete, send a **SINGLE, CONSOLIDATED MESSAGE**.
-4. **FORMAT:** This final message must contain the "Video Identity Card" for **EVERY** video generated, one after another.
+
+---
+
+### VISUAL OUTPUT STYLE GUIDE (FORMATTING)
+When presenting the "Master Recap" or any final concept, you must STRICTLY use this readable format:
+
+### 🎬 [INSERT VIDEO TITLE HERE]
+
+**👥 LE CASTING**
+* **Host:** The Host
+* **Co-Host:** [Name]
+
+**📅 METADATA**
+* **Date:** [Date]
+* **Tags:** `[Tag 1]` `[Tag 2]` `[Tag 3]` ...
+
+**📝 DESCRIPTION & PITCH**
+> [Insert Description here. Make it punchy. Use a blockquote.]
+
+**🖼️ THUMBNAIL PROMPT (Visual)**
+* **Text:** "[TEXT ON IMAGE]"
+* **Action:** [Brief summary of the action]
+
+---
+*(Use a horizontal rule between multiple videos)*
 
 ---
 
@@ -138,7 +130,7 @@ You must follow these steps internally to ensure quality.
 class Assistant:
     def __init__(self, ia:IA):
         self.ia = ia
-        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video, self.predict_n_next_videos, self.get_n_last_video_titles], sys_prompt=sys_prompt)
+        self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video, self.predict_n_next_videos, self.get_n_last_video_titles, self.get_n_last_video_descriptions], sys_prompt=sys_prompt)
         self.images = []
 
     def predict_next_video(self) -> dict:
@@ -206,5 +198,16 @@ class Assistant:
         """
         print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} derniers titres...")
         return get_n_last_video_titles(n)
+
+    def get_n_last_video_descriptions(self, n: int = 5) -> list[str]:
+        """
+        Récupère la description des n dernières vidéo pour s'en inspirer ou faire une suite
+        :param n:
+        Indique le nombre de descriptions
+        :return:
+        Retourne une liste de chaines de caractère qui sont les descriptions des n dernières videos
+        """
+        print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} dernières descriptions...")
+        return get_n_last_descriptions(n)
 
 
