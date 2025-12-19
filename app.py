@@ -55,17 +55,18 @@ st.title("Bienvenue sur mon Application Streamlit")
 # --- MODIFICATION ICI : AJOUT DU 4ème ONGLET ---
 home, data, llm, tech_tab = st.tabs(["🏠 Objectif", "📊 Données", "🤖 LLM", "⚙️ Architecture IA"])
 
-# --- Onglet Accueil ---
+# --- Onglet Objectif ---
 with home:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.header("Page d'accueil")
-        st.write("Ceci est une application Streamlit avec des onglets.")
-
-        try:
-            st.image("thumbnail.png", caption="Image de présentation", width=400)
-        except:
-            st.info("Ajoutez une image 'thumbnail.png' à la racine pour la voir ici.")
+        st.header("Objectifs de l'application")
+        st.markdown("""
+        Cette application vise à :
+        - **Prédire des informations clés** sur les prochaines vidéos (date, durée, tags).
+        - **Générer du contenu** (titres, descriptions) pour les vidéos.
+        - **Imaginer des concepts** de miniatures.
+        """)
+        st.info("L'objectif principal est d'aider à la prise de décision stratégique pour le contenu vidéo.")
 
 # --- Onglet Données ---
 with data:
@@ -405,4 +406,3 @@ with tech_tab:
         st.caption("Durée (Courte vs Longue)")
         st.progress(0.6)
         st.markdown("*L'IA pénalise les formats courts le dimanche.*")
-
