@@ -4,6 +4,8 @@ import os
 from generativeAI.gemini_tools import IA
 from generativeAI.assistant import Assistant
 import re
+import warnings
+
 
 # Configuration de la page
 st.set_page_config(
@@ -129,7 +131,7 @@ with data:
             st.subheader("Explorateur brut")
             st.dataframe(
                 df[['title', 'upload_date', 'view_count', 'duration', 'tags']], 
-                use_container_width=True,
+                width='stretch',
                 hide_index=True
             )
             
@@ -164,7 +166,7 @@ with llm:
             with st.container(height=500, border=True):
                 for msg in st.session_state.chat_history:
                     with st.chat_message(msg["role"]):
-                        content_text = msg["content"]
+                        content_text = msg["content"] or ""
 
                         if isinstance(msg.get("images"), dict):
                             st.session_state.gallery.update(msg["images"])
@@ -190,11 +192,11 @@ with llm:
                                         c1, c2, c3 = st.columns([1, 4, 1])
                                         with c2:
                                             try:
-                                                st.image(image_data, use_container_width=True)
+                                                st.image(image_data, width='stretch')
                                             except:
                                                 # Fallback bytes
                                                 if hasattr(image_data, "image_bytes"):
-                                                    st.image(image_data.image_bytes, use_container_width=True)
+                                                    st.image(image_data.image_bytes, width='stretch')
                                     else:
                                         st.error(f"Image introuvable : '{img_id}'")
                                 else:
