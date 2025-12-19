@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-file = os.path.join(os.path.dirname(__file__), 'amixem_20251023.csv')
+file = os.path.join(os.path.dirname(__file__), 'amixem_20251219.csv')
 
 df = pd.read_csv(file)
 

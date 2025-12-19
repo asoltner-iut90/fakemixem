@@ -124,7 +124,7 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
 
 # --- 3. MAIN (TRAIN & SAVE) ---
 if __name__ == "__main__":
-    csv_path = '../datasets/amixem_20251023.csv'
+    csv_path = '../datasets/amixem_20251219.csv'
     
     print("Chargement des données...")
     df = load_and_prep_data(csv_path, limit=300)

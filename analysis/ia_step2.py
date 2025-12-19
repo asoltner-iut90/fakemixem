@@ -246,10 +246,10 @@ if __name__ == "__main__":
     predictor = AmixemPredictorPhase2()
     
     possible_paths = [
-        "../datasets/amixem_20251023.csv",
-        "../Datasets/amixem_20251023.csv",
-        "amixem_20251023.csv",
-        "datasets/amixem_20251023.csv"
+        "../datasets/amixem_20251219.csv",
+        "../Datasets/amixem_20251219.csv",
+        "amixem_20251219.csv",
+        "datasets/amixem_20251219.csv"
     ]
     
     dataset_found = False

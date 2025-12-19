@@ -3,3 +3,4 @@
 /.streamlit
 .env
 /generativeAI/__pycache__/
+/analysis/__pycache__

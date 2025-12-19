@@ -69,22 +69,90 @@ with home:
 
 # --- Onglet Données ---
 with data:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.header("Page des données")
-        st.write("Voici la présentation des données.")
+    st.header("Le dataset")
+    st.write("L'IA ne devine pas au hasard. Elle s'entraîne sur l'historique réel de la chaîne.")
 
-        df = pd.DataFrame({
-            'Colonne A': [1, 2, 3, 4],
-            'Colonne B': [10, 20, 30, 40]
-        })
-        st.dataframe(df)
+    try:
+        file_path = "datasets/amixem_20251219.csv" 
+        
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path)
+            # Tri de plus récent au plus ancien
+            df.sort_values(by='upload_date', ascending=False, inplace=True)
+            
+            if 'upload_date' in df.columns:
+                df['upload_date'] = pd.to_datetime(df['upload_date'], format='%Y%m%d', errors='coerce')
+                df['year'] = df['upload_date'].dt.year
+                df['day_name'] = df['upload_date'].dt.day_name()
+            
+            # 2. INDICATEURS CLÉS (KPIs)
+            st.markdown("### 📈 Vue d'ensemble")
+            col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
+            
+            with col_kpi1:
+                st.metric("Total vidéos", f"{len(df)}")
+            with col_kpi2:
+                # Calcul des vues totales en millions
+                total_views = df['view_count'].sum()
+                st.metric("Vues cumulées", f"{total_views/1e9:.2f} Md")
+            with col_kpi3:
+                # Moyenne des likes
+                avg_likes = df['likes'].mean()
+                st.metric("Moyenne Likes", f"{avg_likes/1000:.0f} k")
+            with col_kpi4:
+                # Année la plus ancienne
+                oldest = df['upload_date'].min().year if 'upload_date' in df else "N/A"
+                st.metric("Données depuis", f"{oldest}")
 
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("Télécharger CSV", csv, "data.csv", "text/csv")
+            st.divider()
+
+            st.subheader("Jours de publication")
+            if 'day_name' in df.columns:
+                days_count = df['day_name'].value_counts()
+                st.bar_chart(days_count)
+                st.caption("L'IA utilise cette info pour savoir que le Dimanche est crucial.")
+
+            st.divider()
+
+            # 4. EXPLICATION DES COLONNES (L'utilité pour l'IA)
+            st.subheader("🧠 À quoi servent ces données pour l'IA ?")
+            
+            with st.expander("Voir le dictionnaire des variables (Feature Engineering)", expanded=True):
+                st.markdown("""
+                | Colonne | Rôle dans l'IA | Description |
+                | :--- | :--- | :--- |
+                | **title / description** | **Apprentissage sémantique** | Permet au LLM de comprendre le style, l'humour et les mots-clés qui cliquent. |
+                | **tags** | **Associations** | Utilisé par le *Random Forest* pour lier des concepts (ex: "Lego" + "Construction"). |
+                | **view_count** | **Target (Cible)** | C'est la note que l'IA essaie de prédire. C'est son objectif de réussite. |
+                | **upload_date** | **Saisonnalité** | Permet de comprendre qu'une vidéo "Ski" marche mieux en Janvier qu'en Juillet. |
+                | **duration** | **Format** | Aide l'IA à décider si le concept mérite 10min ou 40min. |
+                """)
+
+            # 5. EXPLORATEUR DE DONNÉES BRUTES
+            st.subheader("Explorateur brut")
+            st.dataframe(
+                df[['title', 'upload_date', 'view_count', 'duration', 'tags']], 
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # Bouton de téléchargement
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Télécharger le dataset complet (CSV)",
+                data=csv,
+                file_name='amixem_dataset_export.csv',
+                mime='text/csv',
+            )
+
+        else:
+            st.error(f"Le fichier de données est introuvable à l'emplacement : `{file_path}`")
+            st.info("Assurez-vous que le fichier .csv est bien dans le dossier /datasets à la racine de votre projet.")
+
+    except Exception as e:
+        st.error(f"Une erreur s'est produite lors du chargement des données : {e}")
 
 # --- Onglet LLM ---
-
 with llm:
     col_h1, col_h2, col_h3 = st.columns([1, 2, 1])
     with col_h2:
@@ -158,7 +226,7 @@ with llm:
 
 # Onglet Architecture IA
 with tech_tab:
-    st.header("🧠 Le cerveau hybride de l'IA")
+    st.header("Le cerveau de l'IA")
 
     st.markdown("""
     Cette IA repose sur une approche **en deux temps** :  
@@ -170,7 +238,7 @@ with tech_tab:
     
     st.divider()
     
-    st.header("Phase 1 : Le Planificateur de Contenu")
+    st.header("Phase 1 : Le planificateur de contenu")
 
     st.divider()
 
@@ -254,30 +322,30 @@ with tech_tab:
         
     st.divider()
 
-    st.header("Phase 2 : L'analyste de o-performance")
+    st.header("Phase 2 : Analyse de performance")
     
     st.markdown("""
-    Une fois la vidéo imaginée (Titre, Date, Durée), nous passons le relais à une seconde IA spécialisée.
+    Une fois la vidéo imaginée (titre, date, durée), nous passons le relais à une seconde IA spécialisée.
     Son but n'est pas de créer, mais de **juger**.
     """)
 
     col_p2_1, col_p2_2 = st.columns([1, 1])
     
     with col_p2_1:
-        st.markdown("#### Le Conseil des Experts (Random Forest)")
+        st.markdown("#### Le conseil des experts (Random Forest)")
         st.write("""
-        Pour prédire le nombre de vues, nous n'utilisons pas une seule formule mathématique, mais un **algorithme de Forêts Aléatoires**.
+        Pour prédire le nombre de vues, nous utilisons un **algorithme de Forêts Aléatoires** (Random Forest).
         
-        Imaginez réunir **200 experts YouTube** dans une pièce.
-        - L'expert A regarde uniquement la durée de la vidéo.
-        - L'expert B regarde si c'est les vacances scolaires.
-        - L'expert C analyse les mots-clés ("Réaction" vs "Voyage").
+        On utilise **200 arbres** :
+        - L'arbre A regarde uniquement la durée de la vidéo.
+        - L'arbre B regarde si c'est les vacances scolaires.
+        - L'arbre C analyse les mots-clés ("Réaction" vs "Voyage").
         
         À la fin, l'IA fait la **moyenne** de ces 200 avis pour donner une estimation robuste, qui évite les erreurs grossières.
         """)
         
         st.info("""
-        **Pourquoi c'est efficace ?** Contrairement à une régression linéaire simple, ce modèle comprend les règles non-linéaires 
+        Contrairement à une régression linéaire simple, ce modèle comprend les règles non-linéaires 
         (ex: une vidéo très longue marche bien le dimanche, mais mal le mardi).
         """)
 
@@ -322,7 +390,7 @@ with tech_tab:
     
     with col_var1:
         st.markdown("**1. La Temporalité**")
-        st.caption("Mois, Jour de la semaine, Vacances")
+        st.caption("Mois, jour de la semaine, vacances...")
         st.progress(0.9)
         st.markdown("*L'IA sait que Décembre est un mois fort.*")
 

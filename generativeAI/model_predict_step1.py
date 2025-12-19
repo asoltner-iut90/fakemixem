@@ -222,7 +222,7 @@ def predict_one() -> dict:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = os.path.join(BASE_DIR, 'models', 'planner_v5_hierarchical.keras')
     models_dir = os.path.join(BASE_DIR, 'models')
-    data_path = os.path.join(BASE_DIR, 'datasets', 'amixem_20251023.csv')
+    data_path = os.path.join(BASE_DIR, 'datasets', 'amixem_20251219.csv')
     
     return generate_schedule(model_path, data_path, models_dir, steps=1)[0]
 
@@ -233,7 +233,7 @@ def predict_multiple(nb) -> list:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = os.path.join(BASE_DIR, 'models', 'planner_v5_hierarchical.keras')
     models_dir = os.path.join(BASE_DIR, 'models')
-    data_path = os.path.join(BASE_DIR, 'datasets', 'amixem_20251023.csv')
+    data_path = os.path.join(BASE_DIR, 'datasets', 'amixem_20251219.csv')
     
     return generate_schedule(model_path, data_path, models_dir, steps=nb)
 
