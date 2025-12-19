@@ -23,6 +23,7 @@ def create_collage_multi(image_paths_list):
         for img in resized_images:
             collage.paste(img, (x_offset, 0))
             x_offset += img.width
+        collage.save("out/collage_multi.jpg")
         return collage
     except Exception as e:
         print(f"❌ Erreur collage : {e}")
@@ -56,7 +57,15 @@ def generate_thumbnail(client, prompt, photos=None):
             ],
         )
     )
-    return response
+    if response.parts:
+        for part in response.parts:
+            if part.inline_data:
+                img = part.as_image()
+                if img:
+                    random_id = os.urandom(4).hex()
+                    img.save(f"out/{random_id}.jpg")
+                    return img
+    return None
 
 
 

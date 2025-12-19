@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from generativeAI.gemini_tools import IA
 from generativeAI.assistant import Assistant
+import re
 
 # Configuration de la page
 st.set_page_config(
@@ -17,12 +18,12 @@ if "assistant" not in st.session_state and api_key:
     ia = IA(api_key)
     st.session_state.assistant = Assistant(ia)
 
-if "generated_images" not in st.session_state:
-    st.session_state.generated_images = []
-
 # Initialisation de l'historique du chat pour l'affichage
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+
+if "gallery" not in st.session_state:
+    st.session_state.gallery = {}
 
 # --- 4. INTERFACE UTILISATEUR (Structure demandée) ---
 
@@ -45,9 +46,9 @@ hide_streamlit_style = """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 
-# --- GESTION DE L'ÉTAT (SESSION STATE) ---
-if "generated_images" not in st.session_state:
-    st.session_state.generated_images = []
+
+
+
 
 # Titre principal
 st.title("Bienvenue sur mon Application Streamlit")
@@ -164,25 +165,57 @@ with llm:
             st.warning("⚠️ Clé API introuvable.")
 
     if api_key:
-        # 2. HISTORIQUE PLEINE LARGEUR (Full Width)
-        # Pas de colonnes ici, on utilise toute la largeur disponible
+        # 2. HISTORIQUE PLEINE LARGEUR
+        # 2. HISTORIQUE PLEINE LARGEUR
         if st.session_state.chat_history:
             with st.container(height=500, border=True):
                 for msg in st.session_state.chat_history:
                     with st.chat_message(msg["role"]):
-                        st.markdown(msg["content"])
-                        # --- GESTION DES IMAGES AVEC COLONNES ---
-                        images = msg.get("images", [])
-                        if images:
-                            for img_content in images:
-                                col_img, col_void = st.columns([2, 3])
-                                with col_img:
-                                    try:
-                                        # On utilise 'use_container_width=True' pour remplir la petite colonne
-                                        st.image(img_content, use_container_width=True)
-                                    except AttributeError:
-                                        if hasattr(img_content, "image_bytes"):
-                                            st.image(img_content.image_bytes, use_container_width=True)
+                        content_text = msg["content"]
+
+                        # --- CRITIQUE : SYNCHRONISATION GALERIE ---
+                        # On s'assure que les images de ce message sont bien dans la mémoire globale
+                        # AVANT d'essayer de les afficher via le texte.
+                        if isinstance(msg.get("images"), dict):
+                            st.session_state.gallery.update(msg["images"])
+
+                        # --- DÉCOUPAGE ROBUSTE ---
+                        # Regex qui capture la balise entière <show_image ... />
+                        # (.*? est 'lazy' pour s'arrêter à la première fermeture >)
+                        parts = re.split(r'(<show_image.*?>)', content_text)
+
+                        for part in parts:
+                            # Cas A : C'est une balise image détectée
+                            if "<show_image" in part:
+                                # Regex pour extraire l'ID, compatible avec " et '
+                                match = re.search(r'id=["\'](.*?)["\']', part)
+
+                                if match:
+                                    img_id = match.group(1).strip()  # .strip() enlève les espaces parasites
+
+                                    # Récupération dans la galerie
+                                    image_data = st.session_state.gallery.get(img_id)
+
+                                    if image_data:
+                                        # Affichage centré
+                                        c1, c2, c3 = st.columns([1, 4, 1])
+                                        with c2:
+                                            try:
+                                                st.image(image_data, use_container_width=True)
+                                            except:
+                                                # Fallback bytes
+                                                if hasattr(image_data, "image_bytes"):
+                                                    st.image(image_data.image_bytes, use_container_width=True)
+                                    else:
+                                        # DEBUG : Affiche ça seulement si ça plante encore
+                                        st.error(f"Image introuvable : '{img_id}'")
+                                        # st.write(f"IDs dispos : {list(st.session_state.gallery.keys())}")
+                                else:
+                                    pass  # Balise mal formée, on l'ignore
+
+                            # Cas B : C'est du texte normal
+                            elif part.strip():
+                                st.markdown(part)
 
         # 3. ZONE DE SAISIE CENTRÉE
         col_i1, col_i2, col_i3 = st.columns([1, 2, 1])
@@ -193,22 +226,27 @@ with llm:
 
             generate_btn = st.button("✨ Envoyer / Générer", type="primary")
 
-            # --- Logique de génération (Centrée avec l'input) ---
+            # --- Logique de génération ---
+            # --- Logique de génération ---
             if generate_btn and prompt_input:
-                # Ajout immédiat du message utilisateur à l'historique
                 st.session_state.chat_history.append({"role": "user", "content": prompt_input})
 
                 with st.spinner("Le Directeur Artistique réfléchit..."):
                     try:
-                        # Appel via la classe Assistant
                         assistant = st.session_state.assistant
                         response = assistant.send_message(prompt_input)
 
-                        # Ajout de la réponse à l'historique
+                        new_images_dict = response.get("images", {})
+
+                        # 1. MISE À JOUR IMMÉDIATE DE LA GALERIE
+                        if new_images_dict:
+                            st.session_state.gallery.update(new_images_dict)
+
+                        # 2. SAUVEGARDE DANS L'HISTORIQUE
                         st.session_state.chat_history.append({
                             "role": "assistant",
                             "content": response["message"],
-                            "images": response.get("images", [])
+                            "images": new_images_dict
                         })
 
                         st.rerun()
@@ -216,13 +254,12 @@ with llm:
                     except Exception as e:
                         st.error(f"Une erreur est survenue : {e}")
 
-            # --- Affichage Image "Focus" (Optionnel, centré en bas) ---
-            if st.session_state.generated_images:
+            # --- Bouton Reset (Optionnel) ---
+            if st.session_state.chat_history:
                 st.divider()
-                # On affiche juste un petit rappel ou bouton clear centré
-                if st.button("Effacer l'historique des images"):
-                    st.session_state.generated_images = []
+                if st.button("Effacer l'historique"):
                     st.session_state.chat_history = []
+                    st.session_state.gallery = {}  # On vide aussi la galerie ? À toi de voir
                     st.rerun()
 
 # Onglet Architecture IA

@@ -23,6 +23,15 @@ For you, when the user mentions "working on a video" or "managing the video", it
 
 ---
 
+### 🖼️ IMAGE MANAGEMENT & DISPLAY PROTOCOL (CRITICAL)
+Your system relies on an **Asset Gallery**.
+1. **TOOL OUTPUT:** When you run `generate_thumbnail`, the tool returns an **ID** (e.g., `img_concept_01`).
+2. **DISPLAY LOGIC:** To show an image to the user (whether it's a new one or an old one from the gallery), you MUST include this specific XML tag in your final response:
+   `<show_image id="INSERT_ID_HERE" />`
+3. **MANDATORY:** In your final recap, you **MUST** use this tag so the user sees the visual next to the text.
+
+---
+
 ### INTERNAL CASTING LOGIC (MANDATORY SELECTION)
 Before defining the concept, you MUST select the crew based on the video genre.
 **THE HOST (Main Character):** ALWAYS present. He is the central narrative lead.
@@ -47,17 +56,21 @@ Before defining the concept, you MUST select the crew based on the video genre.
 ### MANDATORY WORKFLOW (INTERNAL LOGIC):
 You must follow these steps internally to ensure quality.
 
-**STEP 1: STRATEGY & METADATA (Tool: `predict_video_metadata`)**
-- Call the tool to get technical constraints.
+**STEP 1: STRATEGY & METADATA**
+- Call `predict_video_metadata` to get technical constraints and tags.
 
-**STEP 2: CONCEPT, CAST & TITLE**
-- Define the Subject.
-- **APPLY CASTING LOGIC:** Explicitly decide who is in the video.
-- Create the Title.
+**STEP 2: CONCEPT & CASTING**
+- Define the Subject and **APPLY CASTING LOGIC**.
+- Decide strictly who is filming (e.g., "Amixem + Thomas").
 
-**STEP 3: VISUALIZATION (Tool: `generate_thumbnail`)**
-- Generate the thumbnail LAST using the "CRITICAL RULES" below.
+**STEP 3: DESCRIPTION WRITING (Tool: `generate_description`)**
+- You MUST generate a **full, ready-to-post YouTube description**.
+- It must include: A strong hook (lines 1-2), the context of the challenge, and a Call-to-Action (CTA).
+- Do NOT merge this with the pitch.
 
+**STEP 4: VISUALIZATION (Tool: `generate_thumbnail`)**
+- Generate the thumbnail LAST.
+- **Capture the ID** returned by the tool.
 ---
 
 ### ⚠️ FINAL OUTPUT PROTOCOL (CRITICAL FOR API)
@@ -69,24 +82,29 @@ You must follow these steps internally to ensure quality.
 ---
 
 ### VISUAL OUTPUT STYLE GUIDE (FORMATTING)
-When presenting the "Master Recap" or any final concept, you must STRICTLY use this readable format:
+When presenting the "Master Recap", use this **clean, client-ready format**:
 
 ### 🎬 [INSERT VIDEO TITLE HERE]
 
 **👥 LE CASTING**
-* **Host:** The Host
-* **Co-Host:** [Name]
+Amixem & [Insert Co-host Name] & [Insert Co-host Name]
+*(Do NOT use labels like "Host/Co-host". Just list the names cleanly.)*
 
 **📅 METADATA**
 * **Date:** [Date]
 * **Tags:** `[Tag 1]` `[Tag 2]` `[Tag 3]` ...
 
-**📝 DESCRIPTION & PITCH**
-> [Insert Description here. Make it punchy. Use a blockquote.]
+**💡 LE PITCH (Interne)**
+> [Une phrase simple pour résumer le concept en interne.]
 
-**🖼️ THUMBNAIL PROMPT (Visual)**
-* **Text:** "[TEXT ON IMAGE]"
-* **Action:** [Brief summary of the action]
+**📝 DESCRIPTION YOUTUBE (Prêt à poster)**
+```text
+[Insert the FULL generated description here.
+It should look exactly like a real YouTube description box.
+Include the hook, the challenge details, and the "Abonnez-vous !" message.]
+
+**🖼️ THUMBNAIL (VISUAL)**
+<show_image id="[INSERT_ID_HERE]" />
 
 ---
 *(Use a horizontal rule between multiple videos)*
@@ -131,7 +149,7 @@ class Assistant:
     def __init__(self, ia:IA):
         self.ia = ia
         self.chat = ia.get_new_chat([self.generate_thumbnail, self.predict_next_video, self.predict_n_next_videos, self.get_n_last_video_titles, self.get_n_last_video_descriptions], sys_prompt=sys_prompt)
-        self.images = []
+        self.images = {}
 
     def predict_next_video(self) -> dict:
         """
@@ -154,7 +172,7 @@ class Assistant:
     def send_message(self, prompt):
         text = self.ia.send_message(prompt, self.chat, False)
         data =  {"message": text, "images": self.images}
-        self.images = []
+        self.images = {}
         return data
 
 
@@ -174,17 +192,17 @@ class Assistant:
             actors = ["thomas", "yvan"]
         print(f"\n[SYSTEM] 🎨 TOOL : Génération de la miniature...")
         try:
-            response = generate_thumbnail(self.ia.client, prompt, actors)
-            if response.parts:
-                for part in response.parts:
-                    if part.inline_data:
-                        img = part.as_image()
-                        if img:
-                            self.images.append(img)
-                            return {"status": "succes"}
-                        return {"status": "empty image"}
+            img = generate_thumbnail(self.ia.client, prompt, actors)
+            if not img:
+                print("❌ Erreur génération miniature : empty image")
+                return {"status": "empty image"}
+            img_id = os.urandom(4).hex()
+            self.images[img_id] = img
+            print(f"Miniature générée avec succès. {img_id}")
+            return {"status": "succes", "image_id": img_id}
         except Exception as e:
-            return {"status": "error", "message": e}
+            print(f"❌ Erreur génération miniature : {e}")
+            return {"status": "error"}
         return {"status": "empty image"}
 
 
@@ -199,7 +217,7 @@ class Assistant:
         print(f"\n[SYSTEM] 🎨 TOOL : Récupération des {n} derniers titres...")
         return get_n_last_video_titles(n)
 
-    def get_n_last_video_descriptions(self, n: int = 5) -> list[str]:
+    def get_n_last_video_descriptions(self, n: int = 3) -> list[str]:
         """
         Récupère la description des n dernières vidéo pour s'en inspirer
         :param n:
