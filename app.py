@@ -82,13 +82,19 @@ with data:
             # Tri de plus récent au plus ancien
             df.sort_values(by='upload_date', ascending=False, inplace=True)
             
+            # Make duration in minutes rounded to 2 decimals
+            if 'duration' in df.columns:
+                df['duration'] = (df['duration'] / 60).round(2)
+            
+            
+            
             if 'upload_date' in df.columns:
                 df['upload_date'] = pd.to_datetime(df['upload_date'], format='%Y%m%d', errors='coerce')
                 df['year'] = df['upload_date'].dt.year
                 df['day_name'] = df['upload_date'].dt.day_name()
             
             # 2. INDICATEURS CLÉS (KPIs)
-            st.markdown("### 📈 Vue d'ensemble")
+            st.markdown("### Vue d'ensemble")
             col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
             
             with col_kpi1:
