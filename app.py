@@ -44,11 +44,7 @@ hide_streamlit_style = """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Titre principal
-<<<<<<< Updated upstream
 st.title("Fakemixem")
-=======
-st.title("FakeMixem AI 🎬")
->>>>>>> Stashed changes
 
 home, data, llm, tech_tab = st.tabs(["🏠 Objectif", "📊 Données", "🤖 LLM", "⚙️ Architecture IA"])
 
