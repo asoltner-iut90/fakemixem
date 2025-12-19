@@ -12,7 +12,6 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
 from tensorflow.keras.callbacks import EarlyStopping
 
-# --- 1. FONCTIONS DE PRÉPARATION ---
 def load_and_prep_data(df_or_path, limit=300):
     if isinstance(df_or_path, str):
         df = pd.read_csv(df_or_path)
@@ -86,13 +85,11 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
     x = LSTM(64)(x)
     x = Dropout(0.3)(x)
     
-    # --- LES SORTIES ---
     delay_out = Dense(1, name='delay_out')(Dense(32, activation='relu')(x))
     
     # Classification (Court/Moyen/Long) - Utile pour la cohérence des tags
     dur_class_out = Dense(3, activation='softmax', name='dur_class_out')(Dense(32, activation='relu')(x))
     
-    # NOUVEAU : Régression (Durée exacte)
     dur_scalar_out = Dense(1, name='dur_scalar_out')(Dense(32, activation='relu')(x))
     
     dow_out = Dense(7, activation='softmax', name='dow_out')(Dense(32, activation='relu')(x)) 
@@ -104,7 +101,7 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
     losses = {
         'delay_out': 'mse',
         'dur_class_out': 'categorical_crossentropy',
-        'dur_scalar_out': 'mse',
+        'dur_scalar_out': 'mae',
         'dow_out': 'categorical_crossentropy',
         'tags_out': 'binary_crossentropy',
         'cats_out': 'binary_crossentropy'
@@ -113,7 +110,7 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
     loss_weights = {
         'delay_out': 1.0, 
         'dur_class_out': 1.0, 
-        'dur_scalar_out': 2.0, # Poids élevé pour forcer la précision
+        'dur_scalar_out': 2.0,
         'dow_out': 3.0, 
         'tags_out': 0.5, 
         'cats_out': 0.5
@@ -122,7 +119,6 @@ def build_planner_model(seq_len, n_features, n_tags, n_cats):
     model.compile(optimizer='adam', loss=losses, loss_weights=loss_weights)
     return model
 
-# --- 3. MAIN (TRAIN & SAVE) ---
 if __name__ == "__main__":
     csv_path = '../datasets/amixem_20251219.csv'
     
@@ -160,7 +156,7 @@ if __name__ == "__main__":
     model.save('../models/planner_v5_hierarchical.keras')
     joblib.dump(scaler_dur, '../models/scaler_dur.pkl')
     joblib.dump(scaler_delay, '../models/scaler_delay.pkl')
-    joblib.dump(scaler_rest, '../models/scaler_rest.pkl') # IMPORTANT: J'ai ajouté ce scaler manquant dans la sauvegarde
+    joblib.dump(scaler_rest, '../models/scaler_rest.pkl')
     joblib.dump(mlb_t, '../models/mlb_tags.pkl')
     joblib.dump(mlb_c, '../models/mlb_cats.pkl')
     print("Terminé.")

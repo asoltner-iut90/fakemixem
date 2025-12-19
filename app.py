@@ -25,8 +25,6 @@ if "chat_history" not in st.session_state:
 if "gallery" not in st.session_state:
     st.session_state.gallery = {}
 
-# --- 4. INTERFACE UTILISATEUR (Structure demandée) ---
-
 # Définition du conteneur
 llm = st.container()
 
@@ -45,15 +43,13 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-
-
-
-
-
 # Titre principal
+<<<<<<< Updated upstream
 st.title("Fakemixem")
+=======
+st.title("FakeMixem AI 🎬")
+>>>>>>> Stashed changes
 
-# --- MODIFICATION ICI : AJOUT DU 4ème ONGLET ---
 home, data, llm, tech_tab = st.tabs(["🏠 Objectif", "📊 Données", "🤖 LLM", "⚙️ Architecture IA"])
 
 # --- Onglet Objectif ---
@@ -93,7 +89,6 @@ with data:
                 df['year'] = df['upload_date'].dt.year
                 df['day_name'] = df['upload_date'].dt.day_name()
             
-            # 2. INDICATEURS CLÉS (KPIs)
             st.markdown("### Vue d'ensemble")
             col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
             
@@ -122,7 +117,6 @@ with data:
 
             st.divider()
 
-            # 4. EXPLICATION DES COLONNES (L'utilité pour l'IA)
             st.subheader("🧠 À quoi servent ces données pour l'IA ?")
             
             with st.expander("Voir le dictionnaire des variables (Feature Engineering)", expanded=True):
@@ -136,7 +130,6 @@ with data:
                 | **duration** | **Format** | Aide l'IA à décider si le concept mérite 10min ou 40min. |
                 """)
 
-            # 5. EXPLORATEUR DE DONNÉES BRUTES
             st.subheader("Explorateur brut")
             st.dataframe(
                 df[['title', 'upload_date', 'view_count', 'duration', 'tags']], 
@@ -171,21 +164,15 @@ with llm:
             st.warning("⚠️ Clé API introuvable.")
 
     if api_key:
-        # 2. HISTORIQUE PLEINE LARGEUR
-        # 2. HISTORIQUE PLEINE LARGEUR
         if st.session_state.chat_history:
             with st.container(height=500, border=True):
                 for msg in st.session_state.chat_history:
                     with st.chat_message(msg["role"]):
                         content_text = msg["content"]
 
-                        # --- CRITIQUE : SYNCHRONISATION GALERIE ---
-                        # On s'assure que les images de ce message sont bien dans la mémoire globale
-                        # AVANT d'essayer de les afficher via le texte.
                         if isinstance(msg.get("images"), dict):
                             st.session_state.gallery.update(msg["images"])
 
-                        # --- DÉCOUPAGE ROBUSTE ---
                         # Regex qui capture la balise entière <show_image ... />
                         # (.*? est 'lazy' pour s'arrêter à la première fermeture >)
                         parts = re.split(r'(<show_image.*?>)', content_text)
@@ -213,9 +200,7 @@ with llm:
                                                 if hasattr(image_data, "image_bytes"):
                                                     st.image(image_data.image_bytes, use_container_width=True)
                                     else:
-                                        # DEBUG : Affiche ça seulement si ça plante encore
                                         st.error(f"Image introuvable : '{img_id}'")
-                                        # st.write(f"IDs dispos : {list(st.session_state.gallery.keys())}")
                                 else:
                                     pass  # Balise mal formée, on l'ignore
 
@@ -223,7 +208,6 @@ with llm:
                             elif part.strip():
                                 st.markdown(part)
 
-        # 3. ZONE DE SAISIE CENTRÉE
         col_i1, col_i2, col_i3 = st.columns([1, 2, 1])
         with col_i2:
             prompt_input = st.text_area("Votre message", height=100,
@@ -232,23 +216,19 @@ with llm:
 
             generate_btn = st.button("✨ Envoyer / Générer", type="primary")
 
-            # --- Logique de génération ---
-            # --- Logique de génération ---
             if generate_btn and prompt_input:
                 st.session_state.chat_history.append({"role": "user", "content": prompt_input})
 
-                with st.spinner("Le Directeur Artistique réfléchit..."):
+                with st.spinner("Le directeur artistique réfléchit..."):
                     try:
                         assistant = st.session_state.assistant
                         response = assistant.send_message(prompt_input)
 
                         new_images_dict = response.get("images", {})
 
-                        # 1. MISE À JOUR IMMÉDIATE DE LA GALERIE
                         if new_images_dict:
                             st.session_state.gallery.update(new_images_dict)
 
-                        # 2. SAUVEGARDE DANS L'HISTORIQUE
                         st.session_state.chat_history.append({
                             "role": "assistant",
                             "content": response["message"],
@@ -260,7 +240,7 @@ with llm:
                     except Exception as e:
                         st.error(f"Une erreur est survenue : {e}")
 
-            # --- Bouton Reset (Optionnel) ---
+            # Bouton reset
             if st.session_state.chat_history:
                 st.divider()
                 if st.button("Effacer l'historique"):
@@ -268,7 +248,7 @@ with llm:
                     st.session_state.gallery = {}  # On vide aussi la galerie ? À toi de voir
                     st.rerun()
 
-# Onglet Architecture IA
+# --- Onglet architecture IA ---
 with tech_tab:
     st.header("Le cerveau de l'IA")
 
@@ -286,7 +266,6 @@ with tech_tab:
 
     st.divider()
 
-    # --- PARTIE 1 : PLANIFICATION ---
     st.subheader("1. La gravité du dimanche")
 
     col1, col2 = st.columns([1, 1])
