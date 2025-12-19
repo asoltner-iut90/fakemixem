@@ -63,6 +63,8 @@ with home:
         """)
         st.info("L'objectif principal est d'aider à la prise de décision stratégique pour le contenu vidéo.")
 
+        st.image("./thumbnail.png")
+
 # --- Onglet Données ---
 with data:
     st.header("Le dataset")
