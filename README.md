@@ -51,7 +51,7 @@ pip install -r requirements.txt
 Créer un fichier `secrets.toml` dans un dossier `.streamlit` à la racine du projet avec le contenu suivant :
 
 ```toml
-GOOGLE_API_KEY=[Votre clé API Google ici]
+GOOGLE_API_KEY="Votre clé API Google ici"
 ```
 
 ## Utilisation
