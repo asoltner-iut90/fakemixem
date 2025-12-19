@@ -31,10 +31,10 @@ def create_collage_multi(image_paths_list):
 
 
 images = {
-    "yvan": "yvan.jpg",
-    "thomas": "thomas.jpg",
-    "maxime": "maxime.png",
-    "etienne": "etienne.jpg",
+    "yvan": "images/yvan.jpg",
+    "thomas": "images/thomas.jpg",
+    "maxime": "images/maxime.png",
+    "etienne": "images/etienne.jpg",
 }
 
 def generate_thumbnail(client, prompt, photos=None):
